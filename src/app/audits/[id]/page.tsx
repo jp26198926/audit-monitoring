@@ -18,6 +18,7 @@ import {
   findingsApi,
   auditorsApi,
   auditResultsApi,
+  settingsApi,
   api,
 } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -31,6 +32,7 @@ import {
   XCircleIcon,
   ArrowPathIcon,
   EyeIcon,
+  PrinterIcon,
 } from "@heroicons/react/24/outline";
 import {
   Audit,
@@ -39,6 +41,7 @@ import {
   FindingStatus,
   AuditStatus,
   AuditResultType,
+  CompanySettings,
 } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
@@ -48,6 +51,7 @@ interface AuditWithDetails extends Audit {
   registration_number?: string;
   audit_type_name?: string;
   audit_party_name?: string;
+  audit_company_name?: string;
   result_name?: string;
   created_by_name?: string;
 }
@@ -101,6 +105,8 @@ export default function AuditDetailPage() {
   const [auditAuditors, setAuditAuditors] = useState<any[]>([]);
   const [availableAuditors, setAvailableAuditors] = useState<any[]>([]);
   const [auditResults, setAuditResults] = useState<AuditResultType[]>([]);
+  const [companySettings, setCompanySettings] =
+    useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isEditingAudit, setIsEditingAudit] = useState(false);
@@ -147,6 +153,7 @@ export default function AuditDetailPage() {
       fetchAuditAuditors();
       fetchAvailableAuditors();
       fetchAuditResults();
+      fetchCompanySettings();
     }
   }, [auditId]);
 
@@ -212,6 +219,19 @@ export default function AuditDetailPage() {
     } catch (error: any) {
       console.error("Failed to load audit results:", error);
     }
+  };
+
+  const fetchCompanySettings = async () => {
+    try {
+      const data: any = await settingsApi.get();
+      setCompanySettings(data);
+    } catch (error: any) {
+      console.error("Failed to load company settings:", error);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const handleEditAudit = () => {
@@ -608,7 +628,26 @@ export default function AuditDetailPage() {
   return (
     <ProtectedRoute>
       <AppLayout>
-        <div className="space-y-6">
+        <style jsx global>{`
+          @media print {
+            .no-print {
+              display: none !important;
+            }
+            .print-only {
+              display: block !important;
+            }
+            body {
+              background: white;
+            }
+          }
+          @media screen {
+            .print-only {
+              display: none;
+            }
+          }
+        `}</style>
+
+        <div className="space-y-6 no-print">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -618,6 +657,10 @@ export default function AuditDetailPage() {
               >
                 <ArrowLeftIcon className="h-5 w-5" />
                 Back
+              </Button>
+              <Button variant="secondary" onClick={handlePrint}>
+                <PrinterIcon className="h-5 w-5" />
+                Print
               </Button>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -771,10 +814,10 @@ export default function AuditDetailPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">
-                    Location
+                    Audit Company
                   </label>
                   <p className="mt-1 text-sm text-gray-900">
-                    {audit.location || "-"}
+                    {audit.audit_company_name || "-"}
                   </p>
                 </div>
                 <div>
@@ -1350,6 +1393,249 @@ export default function AuditDetailPage() {
           />
         )}
       </AppLayout>
+
+      {/* Print Layout - Hidden on screen, visible on print */}
+      <div className="print-only">
+        <div
+          className="p-8 bg-white"
+          style={{ fontFamily: "Arial, sans-serif" }}
+        >
+          {/* Company Header */}
+          <div className="border-b-2 border-gray-800 pb-4 mb-6">
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-gray-900">
+                {companySettings?.company_name || "Company Name"}
+              </h1>
+              {companySettings?.company_address && (
+                <p className="text-sm text-gray-600 mt-1">
+                  {companySettings?.company_address}
+                </p>
+              )}
+              <div className="flex justify-center gap-4 text-sm text-gray-600 mt-1">
+                {companySettings?.company_phone && (
+                  <span>Tel: {companySettings?.company_phone}</span>
+                )}
+                {companySettings?.company_email && (
+                  <span>Email: {companySettings?.company_email}</span>
+                )}
+              </div>
+              {companySettings?.website && (
+                <p className="text-sm text-gray-600">
+                  {companySettings?.website}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Document Title */}
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">AUDIT REPORT</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Reference: {audit?.audit_reference}
+            </p>
+            <p className="text-xs text-gray-500">
+              Generated on: {format(new Date(), "MMMM dd, yyyy HH:mm")}
+            </p>
+          </div>
+
+          {/* Audit Information */}
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
+              AUDIT INFORMATION
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-semibold">Vessel:</span>{" "}
+                {audit?.vessel_name}
+              </div>
+              <div>
+                <span className="font-semibold">Registration:</span>{" "}
+                {audit?.registration_number}
+              </div>
+              <div>
+                <span className="font-semibold">Audit Type:</span>{" "}
+                {audit?.audit_type_name}
+              </div>
+              <div>
+                <span className="font-semibold">Audit Party:</span>{" "}
+                {audit?.audit_party_name}
+              </div>
+              <div>
+                <span className="font-semibold">Audit Company:</span>{" "}
+                {audit?.audit_company_name || "N/A"}
+              </div>
+              <div>
+                <span className="font-semibold">Start Date:</span>{" "}
+                {audit?.audit_start_date &&
+                  format(new Date(audit.audit_start_date), "MMM dd, yyyy")}
+              </div>
+              <div>
+                <span className="font-semibold">End Date:</span>{" "}
+                {audit?.audit_end_date
+                  ? format(new Date(audit.audit_end_date), "MMM dd, yyyy")
+                  : "N/A"}
+              </div>
+              <div>
+                <span className="font-semibold">Status:</span> {audit?.status}
+              </div>
+              <div>
+                <span className="font-semibold">Result:</span>{" "}
+                {audit?.result_name || "N/A"}
+              </div>
+              {audit?.remarks && (
+                <div className="col-span-2">
+                  <span className="font-semibold">Remarks:</span>{" "}
+                  {audit?.remarks}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Assigned Auditors */}
+          {auditAuditors.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
+                ASSIGNED AUDITORS
+              </h3>
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Name
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Company
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Role
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Certification
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditAuditors.map((auditor) => (
+                    <tr key={auditor.id}>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {auditor.auditor_name}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {auditor.company_name || "N/A"}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {auditor.role}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {auditor.certification || "N/A"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Findings */}
+          {findings.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
+                FINDINGS
+              </h3>
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Category
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Description
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Status
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Target Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {findings.map((finding) => (
+                    <tr key={finding.id}>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {finding.category}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {finding.description}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {finding.status}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {finding.target_date &&
+                          format(new Date(finding.target_date), "MMM dd, yyyy")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Result Attachments */}
+          {attachments.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
+                RESULT ATTACHMENTS
+              </h3>
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      File Name
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Uploaded By
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Upload Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attachments.map((attachment) => (
+                    <tr key={attachment.id}>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {attachment.file_name}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {attachment.uploader_name || "N/A"}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {format(
+                          new Date(attachment.uploaded_at),
+                          "MMM dd, yyyy",
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="mt-8 pt-4 border-t border-gray-300 text-center text-xs text-gray-600">
+            <p>
+              This is a system-generated document from{" "}
+              {companySettings?.company_name || "Audit Monitoring System"}
+            </p>
+            {companySettings?.registration_number && (
+              <p>Registration No: {companySettings?.registration_number}</p>
+            )}
+          </div>
+        </div>
+      </div>
     </ProtectedRoute>
   );
 }

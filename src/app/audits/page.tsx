@@ -254,6 +254,9 @@ export default function AuditsPage() {
         vessel_id: parseInt(formData.vessel_id),
         audit_type_id: parseInt(formData.audit_type_id),
         audit_party_id: parseInt(formData.audit_party_id),
+        audit_company_id: formData.audit_company_id
+          ? parseInt(formData.audit_company_id)
+          : null,
         audit_end_date: formData.audit_end_date || null,
         next_due_date: formData.next_due_date || null,
         audit_result_id: formData.audit_result_id

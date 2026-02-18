@@ -65,6 +65,7 @@ export class AuditController {
           v.registration_number,
           at.type_name as audit_type_name,
           ap.party_name as audit_party_name,
+          ac.company_name as audit_company_name,
           ar.result_name,
           u.name as created_by_name,
           (SELECT COUNT(*) FROM findings WHERE audit_id = a.id) as findings_count
@@ -72,6 +73,7 @@ export class AuditController {
         LEFT JOIN vessels v ON a.vessel_id = v.id
         LEFT JOIN audit_types at ON a.audit_type_id = at.id
         LEFT JOIN audit_parties ap ON a.audit_party_id = ap.id
+        LEFT JOIN audit_companies ac ON a.audit_company_id = ac.id
         LEFT JOIN audit_results ar ON a.audit_result_id = ar.id
         LEFT JOIN users u ON a.created_by = u.id
         ${whereClause}
@@ -111,12 +113,14 @@ export class AuditController {
           v.registration_number,
           at.type_name as audit_type_name,
           ap.party_name as audit_party_name,
+          ac.company_name as audit_company_name,
           ar.result_name,
           u.name as created_by_name
         FROM audits a
         LEFT JOIN vessels v ON a.vessel_id = v.id
         LEFT JOIN audit_types at ON a.audit_type_id = at.id
         LEFT JOIN audit_parties ap ON a.audit_party_id = ap.id
+        LEFT JOIN audit_companies ac ON a.audit_company_id = ac.id
         LEFT JOIN audit_results ar ON a.audit_result_id = ar.id
         LEFT JOIN users u ON a.created_by = u.id
         WHERE a.id = ?`,
@@ -160,6 +164,7 @@ export class AuditController {
       vessel_id: number;
       audit_type_id: number;
       audit_party_id: number;
+      audit_company_id?: number | null;
       audit_reference?: string;
       audit_start_date: string;
       audit_end_date?: string | null;
@@ -176,6 +181,7 @@ export class AuditController {
         vessel_id: data.vessel_id,
         audit_type_id: data.audit_type_id,
         audit_party_id: data.audit_party_id,
+        audit_company_id: data.audit_company_id || null,
         audit_reference: data.audit_reference || null,
         audit_start_date: data.audit_start_date,
         audit_end_date: data.audit_end_date || null,
@@ -190,13 +196,14 @@ export class AuditController {
       // Insert audit first to get the ID
       const result = await query<ResultSetHeader>(
         `INSERT INTO audits 
-        (vessel_id, audit_type_id, audit_party_id, audit_reference, audit_start_date, 
+        (vessel_id, audit_type_id, audit_party_id, audit_company_id, audit_reference, audit_start_date, 
          audit_end_date, next_due_date, location, status, audit_result_id, remarks, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.vessel_id,
           data.audit_type_id,
           data.audit_party_id,
+          data.audit_company_id || null,
           data.audit_reference || null,
           data.audit_start_date,
           data.audit_end_date || null,
@@ -269,6 +276,7 @@ export class AuditController {
       vessel_id?: number;
       audit_type_id?: number;
       audit_party_id?: number;
+      audit_company_id?: number | null;
       audit_reference?: string;
       audit_start_date?: string;
       audit_end_date?: string | null;
@@ -295,6 +303,10 @@ export class AuditController {
       if (data.audit_party_id) {
         updates.push("audit_party_id = ?");
         values.push(data.audit_party_id);
+      }
+      if (data.audit_company_id !== undefined) {
+        updates.push("audit_company_id = ?");
+        values.push(data.audit_company_id);
       }
       if (data.audit_reference) {
         updates.push("audit_reference = ?");

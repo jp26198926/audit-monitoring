@@ -102,6 +102,7 @@ export const createAuditSchema = z.object({
   vessel_id: z.number().int().positive("Vessel ID is required"),
   audit_type_id: z.number().int().positive("Audit type ID is required"),
   audit_party_id: z.number().int().positive("Audit party ID is required"),
+  audit_company_id: z.number().int().positive().optional().nullable(),
   audit_reference: z.string().min(2).optional(), // Auto-generated if not provided
   audit_start_date: z
     .string()
