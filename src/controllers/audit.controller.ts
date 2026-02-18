@@ -276,6 +276,7 @@ export class AuditController {
       location?: string | null;
       status?: AuditStatus;
       audit_result_id?: number | null;
+      report_file_path?: string | null;
       remarks?: string | null;
     },
   ) {
@@ -322,6 +323,10 @@ export class AuditController {
       if (data.audit_result_id !== undefined) {
         updates.push("audit_result_id = ?");
         values.push(data.audit_result_id);
+      }
+      if (data.report_file_path !== undefined) {
+        updates.push("report_file_path = ?");
+        values.push(data.report_file_path);
       }
       if (data.remarks !== undefined) {
         updates.push("remarks = ?");

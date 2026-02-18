@@ -127,6 +127,11 @@ export const updateAuditSchema = z.object({
     .transform((val) => (val === "" ? null : val)),
   status: z.enum(["Planned", "Ongoing", "Completed", "Closed"]).optional(),
   audit_result_id: z.number().int().positive().optional().nullable(),
+  report_file_path: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => (val === "" ? null : val)),
   remarks: z
     .string()
     .optional()

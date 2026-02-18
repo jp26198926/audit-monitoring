@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Card from "@/components/ui/Card";
@@ -26,6 +27,7 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { Audit, Vessel, AuditType, AuditParty, AuditResultType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,6 +55,7 @@ const STATUS_VARIANTS: Record<
 };
 
 export default function AuditsPage() {
+  const router = useRouter();
   const [audits, setAudits] = useState<AuditWithDetails[]>([]);
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [auditTypes, setAuditTypes] = useState<AuditType[]>([]);
@@ -395,26 +398,36 @@ export default function AuditsPage() {
     {
       key: "actions",
       title: "Actions",
-      className: "w-32",
-      render: (_: any, audit: AuditWithDetails) =>
-        canEdit ? (
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleOpenModal(audit)}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => handleDelete(audit)}
-              className="text-red-600 hover:text-red-800"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        ),
+      className: "w-40",
+      render: (_: any, audit: AuditWithDetails) => (
+        <div className="flex gap-2">
+          <button
+            onClick={() => router.push(`/audits/${audit.id}`)}
+            className="text-green-600 hover:text-green-800"
+            title="View Details"
+          >
+            <EyeIcon className="h-5 w-5" />
+          </button>
+          {canEdit && (
+            <>
+              <button
+                onClick={() => handleOpenModal(audit)}
+                className="text-blue-600 hover:text-blue-800"
+                title="Edit"
+              >
+                <PencilIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => handleDelete(audit)}
+                className="text-red-600 hover:text-red-800"
+                title="Delete"
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
+            </>
+          )}
+        </div>
+      ),
     },
   ];
 

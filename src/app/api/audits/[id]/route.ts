@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/middleware/auth.middleware";
 import { AuditController } from "@/controllers/audit.controller";
 import { updateAuditSchema } from "@/validators/schemas";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
+import { generateUniqueFilename } from "@/utils/helpers";
 
 // GET /api/audits/[id] - Get audit by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -18,7 +21,8 @@ export async function GET(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const result = await AuditController.getAuditById(id);
 
     return NextResponse.json(result, {
@@ -36,19 +40,82 @@ export async function GET(
 // PUT /api/audits/[id] - Update audit (Encoder, Admin)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
 
-    if (!user || !["Admin", "Encoder"].includes(user.role)) {
+    if (!user || !["Admin", "Encoder", "Auditor"].includes(user.role)) {
       return NextResponse.json(
         { success: false, error: "Insufficient permissions" },
         { status: 403 },
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
+    const contentType = request.headers.get("content-type") || "";
+
+    // Handle file upload (multipart/form-data)
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      const file = formData.get("file") as File;
+
+      if (!file) {
+        return NextResponse.json(
+          { success: false, error: "No file provided" },
+          { status: 400 },
+        );
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid file type. Only PDF, DOC, DOCX, XLS, XLSX allowed",
+          },
+          { status: 400 },
+        );
+      }
+
+      // Create upload directory if it doesn't exist
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      try {
+        await mkdir(uploadDir, { recursive: true });
+      } catch (error) {
+        // Directory might already exist
+      }
+
+      // Generate unique filename
+      const uniqueFilename = generateUniqueFilename(file.name);
+      const filePath = path.join(uploadDir, uniqueFilename);
+
+      // Save file
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      await writeFile(filePath, buffer);
+
+      // Update audit with file path
+      const fileUrl = `/uploads/${uniqueFilename}`;
+      const result = await AuditController.updateAudit(id, {
+        report_file_path: fileUrl,
+      });
+
+      return NextResponse.json(result, {
+        status: result.success ? 200 : 400,
+      });
+    }
+
+    // Handle JSON update
     const body = await request.json();
 
     // Validate input
@@ -81,7 +148,7 @@ export async function PUT(
 // DELETE /api/audits/[id] - Delete audit (Admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -93,7 +160,8 @@ export async function DELETE(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const result = await AuditController.deleteAudit(id);
 
     return NextResponse.json(result, {
