@@ -6,7 +6,7 @@ import { updateVesselSchema } from "@/validators/schemas";
 // GET /api/vessels/[id] - Get vessel by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -18,7 +18,8 @@ export async function GET(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const result = await VesselController.getVesselById(id);
 
     return NextResponse.json(result, {
@@ -36,7 +37,7 @@ export async function GET(
 // PUT /api/vessels/[id] - Update vessel (Admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -48,7 +49,8 @@ export async function PUT(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const body = await request.json();
 
     // Validate input
@@ -81,7 +83,7 @@ export async function PUT(
 // DELETE /api/vessels/[id] - Delete vessel (Admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -93,7 +95,8 @@ export async function DELETE(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const result = await VesselController.deleteVessel(id);
 
     return NextResponse.json(result, {

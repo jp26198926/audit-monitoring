@@ -5,7 +5,7 @@ import { FindingController } from "@/controllers/finding.controller";
 // POST /api/findings/[id]/close - Close finding (Encoder, Admin)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -17,7 +17,8 @@ export async function POST(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const result = await FindingController.closeFinding(id);
 
     return NextResponse.json(result, {

@@ -6,7 +6,7 @@ import { updateAuditTypeSchema } from "@/validators/schemas";
 // GET /api/audit-types/[id] - Get audit type by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -18,7 +18,8 @@ export async function GET(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const result = await AuditTypeController.getAuditTypeById(id);
 
     return NextResponse.json(result, {
@@ -36,7 +37,7 @@ export async function GET(
 // PUT /api/audit-types/[id] - Update audit type (Admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -48,7 +49,8 @@ export async function PUT(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const body = await request.json();
 
     // Validate input
@@ -84,7 +86,7 @@ export async function PUT(
 // DELETE /api/audit-types/[id] - Delete audit type (Admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -96,7 +98,8 @@ export async function DELETE(
       );
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     const result = await AuditTypeController.deleteAuditType(id);
 
     return NextResponse.json(result, {
