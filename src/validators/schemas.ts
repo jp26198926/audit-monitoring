@@ -48,6 +48,46 @@ export const createAuditPartySchema = z.object({
 
 export const updateAuditPartySchema = createAuditPartySchema.partial();
 
+// Audit Company schemas
+export const createAuditCompanySchema = z.object({
+  company_name: z.string().min(2, "Company name must be at least 2 characters"),
+  contact_person: z.string().optional(),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  is_active: z.boolean().optional().default(true),
+});
+
+export const updateAuditCompanySchema = createAuditCompanySchema.partial();
+
+// Auditor schemas
+export const createAuditorSchema = z.object({
+  audit_company_id: z.number().int().positive("Audit company ID is required"),
+  auditor_name: z.string().min(2, "Auditor name must be at least 2 characters"),
+  certification: z.string().optional(),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  phone: z.string().optional(),
+  specialization: z.string().optional(),
+  is_active: z.boolean().optional().default(true),
+});
+
+export const updateAuditorSchema = createAuditorSchema.partial();
+
+// Audit Auditor Assignment schemas
+export const assignAuditorSchema = z.object({
+  audit_id: z.number().int().positive("Audit ID is required"),
+  auditor_id: z.number().int().positive("Auditor ID is required"),
+  role: z
+    .string()
+    .min(2, "Role must be at least 2 characters")
+    .optional()
+    .default("Auditor"),
+});
+
+export const updateAuditorRoleSchema = z.object({
+  role: z.string().min(2, "Role must be at least 2 characters"),
+});
+
 // Audit Result schemas
 export const createAuditResultSchema = z.object({
   result_name: z.string().min(2, "Result name must be at least 2 characters"),

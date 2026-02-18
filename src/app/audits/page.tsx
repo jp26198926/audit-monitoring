@@ -18,6 +18,7 @@ import {
   vesselsApi,
   auditTypesApi,
   auditPartiesApi,
+  auditCompaniesApi,
 } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
@@ -29,7 +30,14 @@ import {
   ArrowDownTrayIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import { Audit, Vessel, AuditType, AuditParty, AuditResultType } from "@/types";
+import {
+  Audit,
+  Vessel,
+  AuditType,
+  AuditParty,
+  AuditResultType,
+  AuditCompany,
+} from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
@@ -60,6 +68,7 @@ export default function AuditsPage() {
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [auditTypes, setAuditTypes] = useState<AuditType[]>([]);
   const [auditParties, setAuditParties] = useState<AuditParty[]>([]);
+  const [auditCompanies, setAuditCompanies] = useState<AuditCompany[]>([]);
   const [auditResults, setAuditResults] = useState<AuditResultType[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -93,6 +102,7 @@ export default function AuditsPage() {
     vessel_id: "",
     audit_type_id: "",
     audit_party_id: "",
+    audit_company_id: "",
     audit_reference: "",
     audit_start_date: "",
     audit_end_date: "",
@@ -136,16 +146,23 @@ export default function AuditsPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [vesselsData, typesData, partiesData, resultsData]: any[] =
-        await Promise.all([
-          vesselsApi.getAll(),
-          auditTypesApi.getAll(),
-          auditPartiesApi.getAll(),
-          fetch("/api/audit-results?active=true").then((res) => res.json()),
-        ]);
+      const [
+        vesselsData,
+        typesData,
+        partiesData,
+        companiesData,
+        resultsData,
+      ]: any[] = await Promise.all([
+        vesselsApi.getAll(),
+        auditTypesApi.getAll(),
+        auditPartiesApi.getAll(),
+        auditCompaniesApi.getAll(),
+        fetch("/api/audit-results?active=true").then((res) => res.json()),
+      ]);
       setVessels(Array.isArray(vesselsData) ? vesselsData : []);
       setAuditTypes(Array.isArray(typesData) ? typesData : []);
       setAuditParties(Array.isArray(partiesData) ? partiesData : []);
+      setAuditCompanies(Array.isArray(companiesData) ? companiesData : []);
       setAuditResults(Array.isArray(resultsData) ? resultsData : []);
     } catch (error: any) {
       toast.error("Failed to load initial data");
@@ -180,6 +197,9 @@ export default function AuditsPage() {
         vessel_id: audit.vessel_id.toString(),
         audit_type_id: audit.audit_type_id.toString(),
         audit_party_id: audit.audit_party_id.toString(),
+        audit_company_id: audit.audit_company_id
+          ? audit.audit_company_id.toString()
+          : "",
         audit_reference: audit.audit_reference,
         audit_start_date:
           audit.audit_start_date instanceof Date
@@ -207,6 +227,7 @@ export default function AuditsPage() {
         vessel_id: "",
         audit_type_id: "",
         audit_party_id: "",
+        audit_company_id: "",
         audit_reference: "",
         audit_start_date: "",
         audit_end_date: "",
@@ -616,6 +637,18 @@ export default function AuditsPage() {
                   label: p.party_name,
                 }))}
                 required
+              />
+
+              <Select
+                label="Audit Company"
+                value={formData.audit_company_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, audit_company_id: e.target.value })
+                }
+                options={auditCompanies.map((c) => ({
+                  value: c.id,
+                  label: c.company_name,
+                }))}
               />
 
               {editingAudit && (

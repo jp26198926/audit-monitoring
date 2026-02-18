@@ -129,6 +129,40 @@ export const auditPartiesApi = {
   delete: (id: number) => api.delete(`/api/audit-parties/${id}`),
 };
 
+export const auditResultsApi = {
+  getAll: () => api.get("/api/audit-results"),
+  getById: (id: number) => api.get(`/api/audit-results/${id}`),
+  create: (data: any) => api.post("/api/audit-results", data),
+  update: (id: number, data: any) => api.put(`/api/audit-results/${id}`, data),
+  delete: (id: number) => api.delete(`/api/audit-results/${id}`),
+};
+
+export const auditCompaniesApi = {
+  getAll: (params?: any) => api.get("/api/audit-companies", params),
+  getById: (id: number) => api.get(`/api/audit-companies/${id}`),
+  create: (data: any) => api.post("/api/audit-companies", data),
+  update: (id: number, data: any) =>
+    api.put(`/api/audit-companies/${id}`, data),
+  delete: (id: number) => api.delete(`/api/audit-companies/${id}`),
+};
+
+export const auditorsApi = {
+  getAll: (params?: any) => api.get("/api/auditors", params),
+  getById: (id: number) => api.get(`/api/auditors/${id}`),
+  create: (data: any) => api.post("/api/auditors", data),
+  update: (id: number, data: any) => api.put(`/api/auditors/${id}`, data),
+  delete: (id: number) => api.delete(`/api/auditors/${id}`),
+  // Audit-specific auditor methods
+  getAuditAuditors: (auditId: number) =>
+    api.get(`/api/audits/${auditId}/auditors`),
+  assignToAudit: (auditId: number, data: any) =>
+    api.post(`/api/audits/${auditId}/auditors`, data),
+  updateAssignment: (auditId: number, assignmentId: number, data: any) =>
+    api.put(`/api/audits/${auditId}/auditors/${assignmentId}`, data),
+  removeFromAudit: (auditId: number, assignmentId: number) =>
+    api.delete(`/api/audits/${auditId}/auditors/${assignmentId}`),
+};
+
 export const auditsApi = {
   getAll: (params?: any) => api.get("/api/audits", params),
   getById: (id: number) => api.get(`/api/audits/${id}`),
@@ -146,6 +180,12 @@ export const findingsApi = {
   close: (id: number, data: any) => api.post(`/api/findings/${id}/close`, data),
   reopen: (id: number, reason: string) =>
     api.post(`/api/findings/${id}/reopen`, { reason }),
+  // Evidence methods
+  getEvidence: (id: number) => api.get(`/api/findings/${id}/evidence`),
+  uploadEvidence: (id: number, formData: FormData) =>
+    api.uploadFile(`/api/findings/${id}/evidence`, formData),
+  deleteEvidence: (findingId: number, evidenceId: number) =>
+    api.delete(`/api/findings/${findingId}/evidence/${evidenceId}`),
 };
 
 export const usersApi = {

@@ -12,7 +12,8 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { auditsApi, findingsApi, api } from "@/lib/api";
+import FindingDetailModal from "@/components/FindingDetailModal";
+import { auditsApi, findingsApi, auditorsApi, auditResultsApi, api } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   ArrowLeftIcon,
@@ -23,8 +24,9 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ArrowPathIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
-import { Audit, Finding, FindingCategory, FindingStatus } from "@/types";
+import { Audit, Finding, FindingCategory, FindingStatus, AuditStatus, AuditResultType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
@@ -83,13 +85,21 @@ export default function AuditDetailPage() {
   const [audit, setAudit] = useState<AuditWithDetails | null>(null);
   const [findings, setFindings] = useState<FindingWithDetails[]>([]);
   const [attachments, setAttachments] = useState<AuditAttachment[]>([]);
+  const [auditAuditors, setAuditAuditors] = useState<any[]>([]);
+  const [availableAuditors, setAvailableAuditors] = useState<any[]>([]);
+  const [auditResults, setAuditResults] = useState<AuditResultType[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isEditingAudit, setIsEditingAudit] = useState(false);
 
   // Modals
   const [findingModalOpen, setFindingModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [auditorModalOpen, setAuditorModalOpen] = useState(false);
+  const [findingDetailModalOpen, setFindingDetailModalOpen] = useState(false);
   const [editingFinding, setEditingFinding] =
+    useState<FindingWithDetails | null>(null);
+  const [viewingFinding, setViewingFinding] =
     useState<FindingWithDetails | null>(null);
   const [closingFinding, setClosingFinding] =
     useState<FindingWithDetails | null>(null);
@@ -107,12 +117,23 @@ export default function AuditDetailPage() {
 
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [closureRemarks, setClosureRemarks] = useState("");
+  const [auditorFormData, setAuditorFormData] = useState({
+    auditor_id: "",
+    role: "Auditor",
+  });
+  const [auditUpdateData, setAuditUpdateData] = useState({
+    status: "" as AuditStatus,
+    result_id: null as number | null,
+  });
 
   useEffect(() => {
     if (auditId) {
       fetchAudit();
       fetchFindings();
       fetchAttachments();
+      fetchAuditAuditors();
+      fetchAvailableAuditors();
+      fetchAuditResults();
     }
   }, [auditId]);
 
@@ -153,6 +174,70 @@ export default function AuditDetailPage() {
     }
   };
 
+  const fetchAuditAuditors = async () => {
+    try {
+      const data: any = await auditorsApi.getAuditAuditors(auditId);
+      setAuditAuditors(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      console.error("Failed to load auditors:", error);
+    }
+  };
+
+  const fetchAvailableAuditors = async () => {
+    try {
+      const data: any = await auditorsApi.getAll({ active: true });
+      setAvailableAuditors(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      console.error("Failed to load available auditors:", error);
+    }
+  };
+
+  const fetchAuditResults = async () => {
+    try {
+      const data: any = await auditResultsApi.getAll();
+      setAuditResults(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      console.error("Failed to load audit results:", error);
+    }
+  };
+
+  const handleEditAudit = () => {
+    if (audit) {
+      setAuditUpdateData({
+        status: audit.status,
+        result_id: audit.audit_result_id || null,
+      });
+      setIsEditingAudit(true);
+    }
+  };
+
+  const handleCancelEditAudit = () => {
+    setIsEditingAudit(false);
+    setAuditUpdateData({
+      status: "" as AuditStatus,
+      result_id: null,
+    });
+  };
+
+  const handleUpdateAudit = async () => {
+    if (!audit) return;
+    
+    try {
+      setSubmitting(true);
+      await auditsApi.update(auditId, {
+        status: auditUpdateData.status,
+        audit_result_id: auditUpdateData.result_id,
+      });
+      toast.success("Audit updated successfully");
+      setIsEditingAudit(false);
+      fetchAudit();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update audit");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleOpenFindingModal = (finding?: FindingWithDetails) => {
     if (finding) {
       setEditingFinding(finding);
@@ -186,6 +271,16 @@ export default function AuditDetailPage() {
   const handleCloseFindingModal = () => {
     setFindingModalOpen(false);
     setEditingFinding(null);
+  };
+
+  const handleOpenFindingDetailModal = (finding: FindingWithDetails) => {
+    setViewingFinding(finding);
+    setFindingDetailModalOpen(true);
+  };
+
+  const handleCloseFindingDetailModal = () => {
+    setFindingDetailModalOpen(false);
+    setViewingFinding(null);
   };
 
   const handleSubmitFinding = async (e: React.FormEvent) => {
@@ -333,6 +428,46 @@ export default function AuditDetailPage() {
     }
   };
 
+  const handleOpenAuditorModal = () => {
+    setAuditorFormData({ auditor_id: "", role: "Auditor" });
+    setAuditorModalOpen(true);
+  };
+
+  const handleCloseAuditorModal = () => {
+    setAuditorModalOpen(false);
+    setAuditorFormData({ auditor_id: "", role: "Auditor" });
+  };
+
+  const handleAssignAuditor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await auditorsApi.assignToAudit(auditId, {
+        auditor_id: parseInt(auditorFormData.auditor_id),
+        role: auditorFormData.role,
+      });
+      toast.success("Auditor assigned successfully");
+      handleCloseAuditorModal();
+      fetchAuditAuditors();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to assign auditor");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRemoveAuditor = async (assignmentId: number) => {
+    if (!confirm("Are you sure you want to remove this auditor?")) return;
+
+    try {
+      await auditorsApi.removeFromAudit(auditId, assignmentId);
+      toast.success("Auditor removed successfully");
+      fetchAuditAuditors();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to remove auditor");
+    }
+  };
+
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return "-";
     if (bytes < 1024) return bytes + " B";
@@ -414,9 +549,16 @@ export default function AuditDetailPage() {
     {
       key: "actions",
       title: "Actions",
-      className: "w-48",
+      className: "w-56",
       render: (_: any, finding: FindingWithDetails) => (
         <div className="flex gap-2">
+          <button
+            onClick={() => handleOpenFindingDetailModal(finding)}
+            className="text-purple-600 hover:text-purple-800"
+            title="View Details"
+          >
+            <EyeIcon className="h-5 w-5" />
+          </button>
           {canEdit && finding.status !== "Closed" && (
             <>
               <button
@@ -493,7 +635,35 @@ export default function AuditDetailPage() {
           {/* Audit Information Card */}
           <Card>
             <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Audit Information</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Audit Information</h2>
+                {canEdit && !isEditingAudit && (
+                  <Button onClick={handleEditAudit} size="sm">
+                    <PencilIcon className="h-4 w-4 mr-1" />
+                    Update
+                  </Button>
+                )}
+                {isEditingAudit && (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleUpdateAudit}
+                      disabled={submitting}
+                      size="sm"
+                    >
+                      <CheckCircleIcon className="h-4 w-4 mr-1" />
+                      {submitting ? "Saving..." : "Save"}
+                    </Button>
+                    <Button
+                      onClick={handleCancelEditAudit}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      <XCircleIcon className="h-4 w-4 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-500">
@@ -539,11 +709,29 @@ export default function AuditDetailPage() {
                   <label className="text-sm font-medium text-gray-500">
                     Status
                   </label>
-                  <div className="mt-1">
-                    <Badge variant={STATUS_VARIANTS[audit.status] || "default"}>
-                      {audit.status}
-                    </Badge>
-                  </div>
+                  {isEditingAudit ? (
+                    <select
+                      value={auditUpdateData.status}
+                      onChange={(e) =>
+                        setAuditUpdateData({
+                          ...auditUpdateData,
+                          status: e.target.value as AuditStatus,
+                        })
+                      }
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Planned">Planned</option>
+                      <option value="Ongoing">Ongoing</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Closed">Closed</option>
+                    </select>
+                  ) : (
+                    <div className="mt-1">
+                      <Badge variant={STATUS_VARIANTS[audit.status] || "default"}>
+                        {audit.status}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">
@@ -585,9 +773,29 @@ export default function AuditDetailPage() {
                   <label className="text-sm font-medium text-gray-500">
                     Result
                   </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {audit.result_name || "-"}
-                  </p>
+                  {isEditingAudit ? (
+                    <select
+                      value={auditUpdateData.result_id || ""}
+                      onChange={(e) =>
+                        setAuditUpdateData({
+                          ...auditUpdateData,
+                          result_id: e.target.value ? parseInt(e.target.value) : null,
+                        })
+                      }
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Result</option>
+                      {auditResults.map((result) => (
+                        <option key={result.id} value={result.id}>
+                          {result.result_name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-900">
+                      {audit.result_name || "-"}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">
@@ -713,6 +921,85 @@ export default function AuditDetailPage() {
             </div>
           </Card>
 
+          {/* Auditors Section */}
+          <Card>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Assigned Auditors</h2>
+                {canEdit && (
+                  <Button onClick={handleOpenAuditorModal}>
+                    <PlusIcon className="h-5 w-5" />
+                    Assign Auditor
+                  </Button>
+                )}
+              </div>
+              {auditAuditors.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No auditors assigned yet
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Auditor Name
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Company
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Role
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Certification
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Specialization
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {auditAuditors.map((aa) => (
+                        <tr key={aa.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {aa.auditor_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {aa.company_name || "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <Badge variant="info">{aa.role}</Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {aa.certification || "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {aa.specialization || "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {canEdit && (
+                              <button
+                                onClick={() => handleRemoveAuditor(aa.id)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Remove Auditor"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </Card>
+
           {/* Findings Section */}
           <Card>
             <div className="p-6">
@@ -778,39 +1065,44 @@ export default function AuditDetailPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Root Cause
-              </label>
-              <textarea
-                value={findingFormData.root_cause}
-                onChange={(e) =>
-                  setFindingFormData({
-                    ...findingFormData,
-                    root_cause: e.target.value,
-                  })
-                }
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            {/* Root Cause and Corrective Action only shown when editing */}
+            {editingFinding && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Root Cause
+                  </label>
+                  <textarea
+                    value={findingFormData.root_cause}
+                    onChange={(e) =>
+                      setFindingFormData({
+                        ...findingFormData,
+                        root_cause: e.target.value,
+                      })
+                    }
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Corrective Action
-              </label>
-              <textarea
-                value={findingFormData.corrective_action}
-                onChange={(e) =>
-                  setFindingFormData({
-                    ...findingFormData,
-                    corrective_action: e.target.value,
-                  })
-                }
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Corrective Action
+                  </label>
+                  <textarea
+                    value={findingFormData.corrective_action}
+                    onChange={(e) =>
+                      setFindingFormData({
+                        ...findingFormData,
+                        corrective_action: e.target.value,
+                      })
+                    }
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </>
+            )}
 
             <Input
               label="Responsible Person"
@@ -982,6 +1274,71 @@ export default function AuditDetailPage() {
             </div>
           </div>
         </Modal>
+
+        {/* Assign Auditor Modal */}
+        <Modal
+          isOpen={auditorModalOpen}
+          onClose={handleCloseAuditorModal}
+          title="Assign Auditor"
+        >
+          <form onSubmit={handleAssignAuditor} className="space-y-4">
+            <Select
+              label="Select Auditor"
+              value={auditorFormData.auditor_id}
+              onChange={(e) =>
+                setAuditorFormData({
+                  ...auditorFormData,
+                  auditor_id: e.target.value,
+                })
+              }
+              options={availableAuditors.map((a) => ({
+                value: a.id,
+                label: `${a.auditor_name} (${a.company_name || "No Company"})`,
+              }))}
+              required
+            />
+
+            <Select
+              label="Role"
+              value={auditorFormData.role}
+              onChange={(e) =>
+                setAuditorFormData({ ...auditorFormData, role: e.target.value })
+              }
+              options={[
+                { value: "Lead Auditor", label: "Lead Auditor" },
+                { value: "Auditor", label: "Auditor" },
+                { value: "Observer", label: "Observer" },
+                { value: "Technical Expert", label: "Technical Expert" },
+              ]}
+              required
+            />
+
+            <div className="flex gap-2 pt-4">
+              <Button type="submit" disabled={submitting} className="flex-1">
+                {submitting ? "Assigning..." : "Assign Auditor"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleCloseAuditorModal}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Finding Detail Modal with Evidence */}
+        {viewingFinding && (
+          <FindingDetailModal
+            isOpen={findingDetailModalOpen}
+            onClose={handleCloseFindingDetailModal}
+            finding={viewingFinding}
+            onUpdate={fetchFindings}
+            canEdit={canEdit}
+          />
+        )}
       </AppLayout>
     </ProtectedRoute>
   );

@@ -52,6 +52,39 @@ export interface AuditParty {
   updated_at: Date | string;
 }
 
+export interface AuditCompany {
+  id: number;
+  company_name: string;
+  contact_person: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  is_active: boolean;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export interface Auditor {
+  id: number;
+  audit_company_id: number;
+  auditor_name: string;
+  certification: string | null;
+  email: string | null;
+  phone: string | null;
+  specialization: string | null;
+  is_active: boolean;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export interface AuditAuditor {
+  id: number;
+  audit_id: number;
+  auditor_id: number;
+  role: string;
+  assigned_at: Date | string;
+}
+
 export interface AuditResultType {
   id: number;
   result_name: string;
@@ -66,6 +99,7 @@ export interface Audit {
   vessel_id: number;
   audit_type_id: number;
   audit_party_id: number;
+  audit_company_id: number | null;
   audit_reference: string;
   audit_start_date: Date | string;
   audit_end_date: Date | string | null;

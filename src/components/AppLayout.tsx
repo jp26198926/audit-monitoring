@@ -11,6 +11,8 @@ import {
   RectangleGroupIcon,
   DocumentTextIcon,
   UserGroupIcon,
+  BuildingOffice2Icon,
+  UserCircleIcon,
   ClipboardDocumentListIcon,
   ClipboardDocumentCheckIcon,
   ExclamationTriangleIcon,
@@ -30,6 +32,12 @@ const navigation: NavItem[] = [
   { name: "Vessels", href: "/vessels", icon: RectangleGroupIcon },
   { name: "Audit Types", href: "/audit-types", icon: DocumentTextIcon },
   { name: "Audit Parties", href: "/audit-parties", icon: UserGroupIcon },
+  {
+    name: "Audit Companies",
+    href: "/audit-companies",
+    icon: BuildingOffice2Icon,
+  },
+  { name: "Auditors", href: "/auditors", icon: UserCircleIcon },
   {
     name: "Audit Results",
     href: "/audit-results",
