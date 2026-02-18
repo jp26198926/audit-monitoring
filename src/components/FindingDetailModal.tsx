@@ -63,6 +63,7 @@ export default function FindingDetailModal({
   const [correctiveAction, setCorrectiveAction] = useState(
     finding.corrective_action || "",
   );
+  const [rootCause, setRootCause] = useState(finding.root_cause || "");
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -78,6 +79,7 @@ export default function FindingDetailModal({
 
   useEffect(() => {
     setCorrectiveAction(finding.corrective_action || "");
+    setRootCause(finding.root_cause || "");
     setStatus(finding.status);
   }, [finding]);
 
@@ -144,6 +146,21 @@ export default function FindingDetailModal({
       onUpdate();
     } catch (error: any) {
       toast.error(error.message || "Failed to save corrective action");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveRootCause = async () => {
+    try {
+      setSaving(true);
+      await findingsApi.update(finding.id, {
+        root_cause: rootCause || null,
+      });
+      toast.success("Root cause updated successfully");
+      onUpdate();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save root cause");
     } finally {
       setSaving(false);
     }
@@ -223,16 +240,31 @@ export default function FindingDetailModal({
           </p>
         </div>
 
-        {finding.root_cause && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Root Cause
-            </label>
+        {/* Root Cause */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Root Cause
+          </label>
+          {canEdit && status !== "Closed" ? (
+            <div className="space-y-2">
+              <textarea
+                value={rootCause}
+                onChange={(e) => setRootCause(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter root cause analysis..."
+              />
+              <Button onClick={handleSaveRootCause} disabled={saving} size="sm">
+                <CheckCircleIcon className="h-4 w-4 mr-1" />
+                Save Root Cause
+              </Button>
+            </div>
+          ) : (
             <p className="text-sm text-gray-900 bg-gray-50 rounded p-3">
-              {finding.root_cause}
+              {rootCause || "No root cause specified"}
             </p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Corrective Action */}
         <div>

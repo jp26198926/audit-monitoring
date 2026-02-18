@@ -228,3 +228,26 @@ export const dashboardFilterSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
 });
+
+// Company Settings schemas
+export const updateCompanySettingsSchema = z.object({
+  company_name: z.string().min(2, "Company name must be at least 2 characters"),
+  company_address: z.string().optional().nullable(),
+  company_phone: z.string().optional().nullable(),
+  company_email: z
+    .string()
+    .email("Invalid email address")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  contact_person: z.string().optional().nullable(),
+  registration_number: z.string().optional().nullable(),
+  tax_id: z.string().optional().nullable(),
+  website: z
+    .string()
+    .url("Invalid URL")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  logo_path: z.string().optional().nullable(),
+});

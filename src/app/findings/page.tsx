@@ -12,19 +12,31 @@ import Select from "@/components/ui/Select";
 import Badge from "@/components/ui/Badge";
 import Pagination from "@/components/ui/Pagination";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import FindingDetailModal from "@/components/FindingDetailModal";
 import { findingsApi, auditsApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   PlusIcon,
-  PencilIcon,
   TrashIcon,
   CheckCircleIcon,
   ArrowPathIcon,
   FunnelIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { Finding, Audit } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
+
+interface FindingWithDetails extends Finding {
+  audit_reference?: string;
+  vessel_name?: string;
+  audit_type_name?: string;
+}
+
+interface AuditWithDetails extends Audit {
+  audit_reference?: string;
+  vessel_name?: string;
+}
 
 const CATEGORY_VARIANTS: Record<
   string,
@@ -45,15 +57,18 @@ const STATUS_VARIANTS: Record<
 };
 
 export default function FindingsPage() {
-  const [findings, setFindings] = useState<Finding[]>([]);
-  const [audits, setAudits] = useState<Audit[]>([]);
+  const [findings, setFindings] = useState<FindingWithDetails[]>([]);
+  const [audits, setAudits] = useState<AuditWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [reopenModalOpen, setReopenModalOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [editingFinding, setEditingFinding] = useState<Finding | null>(null);
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
+  const [viewingFinding, setViewingFinding] =
+    useState<FindingWithDetails | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { hasRole } = useAuth();
 
@@ -254,13 +269,32 @@ export default function FindingsPage() {
     setPage(1);
   };
 
+  const handleOpenDetailModal = (finding: FindingWithDetails) => {
+    setViewingFinding(finding);
+    setDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setDetailModalOpen(false);
+    setViewingFinding(null);
+  };
+
   const canEdit = hasRole(["Admin", "Auditor"]);
 
   const columns = [
     {
-      key: "id",
-      title: "ID",
-      className: "w-16",
+      key: "audit_reference",
+      title: "Audit Ref",
+      className: "w-32",
+      render: (value: string) => (
+        <span className="font-medium text-blue-600">{value || "-"}</span>
+      ),
+    },
+    {
+      key: "vessel_name",
+      title: "Vessel",
+      className: "w-40",
+      render: (value: string) => value || "-",
     },
     {
       key: "description",
@@ -274,6 +308,7 @@ export default function FindingsPage() {
     {
       key: "category",
       title: "Category",
+      className: "w-32",
       render: (value: string) => (
         <Badge variant={CATEGORY_VARIANTS[value] || "default"}>{value}</Badge>
       ),
@@ -281,57 +316,61 @@ export default function FindingsPage() {
     {
       key: "status",
       title: "Status",
+      className: "w-28",
       render: (value: string) => (
         <Badge variant={STATUS_VARIANTS[value] || "default"}>{value}</Badge>
       ),
     },
     {
-      key: "target_close_date",
+      key: "target_date",
       title: "Target Date",
-      render: (value: string) => format(new Date(value), "MMM dd, yyyy"),
+      className: "w-32",
+      render: (value: string) =>
+        value ? format(new Date(value), "MMM dd, yyyy") : "-",
     },
     {
       key: "actions",
       title: "Actions",
-      className: "w-40",
-      render: (_: any, finding: Finding) =>
-        canEdit ? (
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleOpenModal(finding)}
-              className="text-blue-600 hover:text-blue-800"
-              title="Edit"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </button>
-            {finding.status === "Open" || finding.status === "Overdue" ? (
+      className: "w-44",
+      render: (_: any, finding: FindingWithDetails) => (
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleOpenDetailModal(finding)}
+            className="text-purple-600 hover:text-purple-800"
+            title="View Details"
+          >
+            <EyeIcon className="h-5 w-5" />
+          </button>
+          {canEdit && (
+            <>
+              {finding.status === "Open" || finding.status === "Overdue" ? (
+                <button
+                  onClick={() => handleOpenCloseModal(finding)}
+                  className="text-green-600 hover:text-green-800"
+                  title="Close"
+                >
+                  <CheckCircleIcon className="h-5 w-5" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleOpenReopenModal(finding)}
+                  className="text-orange-600 hover:text-orange-800"
+                  title="Reopen"
+                >
+                  <ArrowPathIcon className="h-5 w-5" />
+                </button>
+              )}
               <button
-                onClick={() => handleOpenCloseModal(finding)}
-                className="text-green-600 hover:text-green-800"
-                title="Close"
+                onClick={() => handleDelete(finding)}
+                className="text-red-600 hover:text-red-800"
+                title="Delete"
               >
-                <CheckCircleIcon className="h-5 w-5" />
+                <TrashIcon className="h-5 w-5" />
               </button>
-            ) : (
-              <button
-                onClick={() => handleOpenReopenModal(finding)}
-                className="text-orange-600 hover:text-orange-800"
-                title="Reopen"
-              >
-                <ArrowPathIcon className="h-5 w-5" />
-              </button>
-            )}
-            <button
-              onClick={() => handleDelete(finding)}
-              className="text-red-600 hover:text-red-800"
-              title="Delete"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        ),
+            </>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -343,10 +382,11 @@ export default function FindingsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                Findings
+                All Findings
               </h1>
               <p className="mt-1 text-sm text-gray-500">
-                Manage audit findings and corrective actions
+                View and manage findings from all audits across different
+                vessels
               </p>
             </div>
             <div className="flex gap-2">
@@ -378,7 +418,9 @@ export default function FindingsPage() {
                   }
                   options={audits.map((a) => ({
                     value: a.id,
-                    label: `Audit #${a.id} - ${format(new Date(a.audit_start_date), "MMM dd, yyyy")}`,
+                    label: a.audit_reference
+                      ? `${a.audit_reference} - ${a.vessel_name || "Unknown Vessel"}`
+                      : `Audit #${a.id} - ${format(new Date(a.audit_start_date), "MMM dd, yyyy")}`,
                   }))}
                 />
                 <Select
@@ -453,7 +495,9 @@ export default function FindingsPage() {
               }
               options={audits.map((a) => ({
                 value: a.id,
-                label: `Audit #${a.id} - ${format(new Date(a.audit_start_date), "MMM dd, yyyy")}`,
+                label: a.audit_reference
+                  ? `${a.audit_reference} - ${a.vessel_name || "Unknown Vessel"}`
+                  : `Audit #${a.id} - ${format(new Date(a.audit_start_date), "MMM dd, yyyy")}`,
               }))}
               required
             />
@@ -461,17 +505,27 @@ export default function FindingsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Description <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-2">
+                  (minimum 10 characters)
+                </span>
               </label>
               <textarea
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={3}
-                placeholder="Describe the finding"
+                placeholder="Describe the finding in detail (at least 10 characters)"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
+                minLength={10}
                 required
               />
+              {formData.description.length > 0 &&
+                formData.description.length < 10 && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {10 - formData.description.length} more characters required
+                  </p>
+                )}
             </div>
 
             <Select
@@ -488,38 +542,42 @@ export default function FindingsPage() {
               required
             />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Root Cause
-              </label>
-              <textarea
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={2}
-                placeholder="Enter root cause analysis (optional)"
-                value={formData.root_cause}
-                onChange={(e) =>
-                  setFormData({ ...formData, root_cause: e.target.value })
-                }
-              />
-            </div>
+            {editingFinding && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Root Cause
+                  </label>
+                  <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={2}
+                    placeholder="Enter root cause analysis (optional)"
+                    value={formData.root_cause}
+                    onChange={(e) =>
+                      setFormData({ ...formData, root_cause: e.target.value })
+                    }
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Corrective Action
-              </label>
-              <textarea
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={2}
-                placeholder="Enter required corrective action (optional)"
-                value={formData.corrective_action}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    corrective_action: e.target.value,
-                  })
-                }
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Corrective Action
+                  </label>
+                  <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={2}
+                    placeholder="Enter required corrective action (optional)"
+                    value={formData.corrective_action}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        corrective_action: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </>
+            )}
 
             <Input
               label="Responsible Person"
@@ -652,6 +710,17 @@ export default function FindingsPage() {
             </div>
           </form>
         </Modal>
+
+        {/* Finding Detail Modal with Evidence */}
+        {viewingFinding && (
+          <FindingDetailModal
+            isOpen={detailModalOpen}
+            onClose={handleCloseDetailModal}
+            finding={viewingFinding}
+            onUpdate={fetchFindings}
+            canEdit={canEdit}
+          />
+        )}
       </AppLayout>
     </ProtectedRoute>
   );

@@ -18,6 +18,7 @@ import {
   ExclamationTriangleIcon,
   UsersIcon,
   ArrowRightOnRectangleIcon,
+  Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 
 interface NavItem {
@@ -46,6 +47,12 @@ const navigation: NavItem[] = [
   { name: "Audits", href: "/audits", icon: ClipboardDocumentListIcon },
   { name: "Findings", href: "/findings", icon: ExclamationTriangleIcon },
   { name: "Users", href: "/users", icon: UsersIcon, allowedRoles: ["Admin"] },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Cog6ToothIcon,
+    allowedRoles: ["Admin"],
+  },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

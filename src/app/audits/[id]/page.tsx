@@ -13,7 +13,13 @@ import Select from "@/components/ui/Select";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import FindingDetailModal from "@/components/FindingDetailModal";
-import { auditsApi, findingsApi, auditorsApi, auditResultsApi, api } from "@/lib/api";
+import {
+  auditsApi,
+  findingsApi,
+  auditorsApi,
+  auditResultsApi,
+  api,
+} from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   ArrowLeftIcon,
@@ -26,7 +32,14 @@ import {
   ArrowPathIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import { Audit, Finding, FindingCategory, FindingStatus, AuditStatus, AuditResultType } from "@/types";
+import {
+  Audit,
+  Finding,
+  FindingCategory,
+  FindingStatus,
+  AuditStatus,
+  AuditResultType,
+} from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
@@ -221,7 +234,7 @@ export default function AuditDetailPage() {
 
   const handleUpdateAudit = async () => {
     if (!audit) return;
-    
+
     try {
       setSubmitting(true);
       await auditsApi.update(auditId, {
@@ -562,13 +575,6 @@ export default function AuditDetailPage() {
           {canEdit && finding.status !== "Closed" && (
             <>
               <button
-                onClick={() => handleOpenFindingModal(finding)}
-                className="text-blue-600 hover:text-blue-800"
-                title="Edit"
-              >
-                <PencilIcon className="h-5 w-5" />
-              </button>
-              <button
                 onClick={() => handleCloseFinding(finding)}
                 className="text-green-600 hover:text-green-800"
                 title="Close Finding"
@@ -727,7 +733,9 @@ export default function AuditDetailPage() {
                     </select>
                   ) : (
                     <div className="mt-1">
-                      <Badge variant={STATUS_VARIANTS[audit.status] || "default"}>
+                      <Badge
+                        variant={STATUS_VARIANTS[audit.status] || "default"}
+                      >
                         {audit.status}
                       </Badge>
                     </div>
@@ -779,7 +787,9 @@ export default function AuditDetailPage() {
                       onChange={(e) =>
                         setAuditUpdateData({
                           ...auditUpdateData,
-                          result_id: e.target.value ? parseInt(e.target.value) : null,
+                          result_id: e.target.value
+                            ? parseInt(e.target.value)
+                            : null,
                         })
                       }
                       className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

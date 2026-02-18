@@ -180,3 +180,18 @@ export interface DashboardFilters {
   date_from?: string;
   date_to?: string;
 }
+
+export interface CompanySettings {
+  id: number;
+  company_name: string;
+  company_address: string | null;
+  company_phone: string | null;
+  company_email: string | null;
+  contact_person: string | null;
+  registration_number: string | null;
+  tax_id: string | null;
+  website: string | null;
+  logo_path: string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
