@@ -186,4 +186,75 @@ export class DashboardController {
       };
     }
   }
+
+  /**
+   * Get findings trend data for comparison
+   */
+  static async getFindingsTrend(filters?: DashboardFilters) {
+    try {
+      // Build filter conditions for audits
+      const auditConditions: string[] = [];
+      const values: any[] = [];
+
+      if (filters?.vessel_id) {
+        auditConditions.push("a.vessel_id = ?");
+        values.push(filters.vessel_id);
+      }
+      if (filters?.audit_type_id) {
+        auditConditions.push("a.audit_type_id = ?");
+        values.push(filters.audit_type_id);
+      }
+
+      const auditWhere =
+        auditConditions.length > 0
+          ? `AND ${auditConditions.join(" AND ")}`
+          : "";
+
+      // Get findings trend over the last 12 months, grouped by audit
+      const findingsTrend = await query<RowDataPacket[]>(
+        `SELECT
+          DATE_FORMAT(a.audit_start_date, '%Y-%m') as month,
+          v.vessel_name,
+          at.type_name,
+          COUNT(f.id) as finding_count
+        FROM audits a
+        LEFT JOIN vessels v ON a.vessel_id = v.id
+        LEFT JOIN audit_types at ON a.audit_type_id = at.id
+        LEFT JOIN findings f ON a.id = f.audit_id
+        WHERE a.audit_start_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        ${auditWhere}
+        GROUP BY DATE_FORMAT(a.audit_start_date, '%Y-%m'), v.vessel_name, at.type_name
+        ORDER BY month`,
+        values,
+      );
+
+      // Get total findings per month for overall trend
+      const monthlyTotals = await query<RowDataPacket[]>(
+        `SELECT
+          DATE_FORMAT(a.audit_start_date, '%Y-%m') as month,
+          COUNT(f.id) as total_findings
+        FROM audits a
+        LEFT JOIN findings f ON a.id = f.audit_id
+        WHERE a.audit_start_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        ${auditWhere}
+        GROUP BY DATE_FORMAT(a.audit_start_date, '%Y-%m')
+        ORDER BY month`,
+        values,
+      );
+
+      return {
+        success: true,
+        data: {
+          findings_trend: findingsTrend,
+          monthly_totals: monthlyTotals,
+        },
+      };
+    } catch (error) {
+      console.error("Get findings trend error:", error);
+      return {
+        success: false,
+        error: "Failed to fetch findings trend data",
+      };
+    }
+  }
 }

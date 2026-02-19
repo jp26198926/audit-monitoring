@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
+import { getAuthUser } from "@/middleware/auth.middleware";
 
 interface AuditResult extends RowDataPacket {
   id: number;
@@ -13,6 +14,15 @@ interface AuditResult extends RowDataPacket {
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await getAuthUser(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Authentication required" },
+        { status: 401 },
+      );
+    }
+
     const pool = getPool();
     const searchParams = req.nextUrl.searchParams;
     const activeOnly = searchParams.get("active");
@@ -36,6 +46,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getAuthUser(req);
+
+    if (!user || (user.role !== "Admin" && user.role !== "Encoder")) {
+      return NextResponse.json(
+        { message: "Admin or Encoder access required" },
+        { status: 403 },
+      );
+    }
+
     const pool = getPool();
     const body = await req.json();
     const { result_name, description, is_active } = body;

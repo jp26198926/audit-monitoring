@@ -62,13 +62,19 @@ export class VesselController {
    */
   static async createVessel(data: {
     vessel_name: string;
-    registration_number: string;
+    vessel_code: string;
+    registration_number?: string | null;
     status?: "Active" | "Inactive";
   }) {
     try {
       const result = await query<ResultSetHeader>(
-        "INSERT INTO vessels (vessel_name, registration_number, status) VALUES (?, ?, ?)",
-        [data.vessel_name, data.registration_number, data.status || "Active"],
+        "INSERT INTO vessels (vessel_name, vessel_code, registration_number, status) VALUES (?, ?, ?, ?)",
+        [
+          data.vessel_name,
+          data.vessel_code,
+          data.registration_number || null,
+          data.status || "Active",
+        ],
       );
 
       return {
@@ -79,6 +85,12 @@ export class VesselController {
     } catch (error: any) {
       console.error("Create vessel error:", error);
       if (error.code === "ER_DUP_ENTRY") {
+        if (error.message.includes('vessel_code')) {
+          return {
+            success: false,
+            error: "Vessel code already exists",
+          };
+        }
         return {
           success: false,
           error: "Registration number already exists",
@@ -98,7 +110,8 @@ export class VesselController {
     id: number,
     data: {
       vessel_name?: string;
-      registration_number?: string;
+      vessel_code?: string;
+      registration_number?: string | null;
       status?: "Active" | "Inactive";
     },
   ) {
@@ -106,15 +119,19 @@ export class VesselController {
       const updates: string[] = [];
       const values: any[] = [];
 
-      if (data.vessel_name) {
+      if (data.vessel_name !== undefined) {
         updates.push("vessel_name = ?");
         values.push(data.vessel_name);
       }
-      if (data.registration_number) {
-        updates.push("registration_number = ?");
-        values.push(data.registration_number);
+      if (data.vessel_code !== undefined) {
+        updates.push("vessel_code = ?");
+        values.push(data.vessel_code);
       }
-      if (data.status) {
+      if (data.registration_number !== undefined) {
+        updates.push("registration_number = ?");
+        values.push(data.registration_number || null);
+      }
+      if (data.status !== undefined) {
         updates.push("status = ?");
         values.push(data.status);
       }
@@ -139,6 +156,12 @@ export class VesselController {
     } catch (error: any) {
       console.error("Update vessel error:", error);
       if (error.code === "ER_DUP_ENTRY") {
+        if (error.message.includes('vessel_code')) {
+          return {
+            success: false,
+            error: "Vessel code already exists",
+          };
+        }
         return {
           success: false,
           error: "Registration number already exists",

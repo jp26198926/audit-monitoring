@@ -87,7 +87,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={["Admin"]}>
         <AppLayout>
           <div className="flex items-center justify-center h-64">
             <LoadingSpinner size="lg" />
@@ -98,7 +98,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={["Admin"]}>
       <AppLayout>
         <div className="space-y-6">
           {/* Header */}

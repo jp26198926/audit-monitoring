@@ -34,7 +34,7 @@ export async function GET(
   }
 }
 
-// PUT /api/audit-types/[id] - Update audit type (Admin only)
+// PUT /api/audit-types/[id] - Update audit type (Admin and Encoder)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -42,9 +42,9 @@ export async function PUT(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || (user.role !== "Admin" && user.role !== "Encoder")) {
       return NextResponse.json(
-        { success: false, error: "Admin access required" },
+        { success: false, error: "Admin or Encoder access required" },
         { status: 403 },
       );
     }

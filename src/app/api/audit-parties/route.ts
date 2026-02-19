@@ -27,14 +27,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/audit-parties - Create audit party (Admin only)
+// POST /api/audit-parties - Create audit party (Admin and Encoder)
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || (user.role !== "Admin" && user.role !== "Encoder")) {
       return NextResponse.json(
-        { success: false, error: "Admin access required" },
+        { success: false, error: "Admin or Encoder access required" },
         { status: 403 },
       );
     }

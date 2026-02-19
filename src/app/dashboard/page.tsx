@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Card from "@/components/ui/Card";
+import Select from "@/components/ui/Select";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { dashboardApi } from "@/lib/api";
+import { dashboardApi, vesselsApi, auditTypesApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   BarChart,
@@ -13,6 +14,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -33,6 +36,21 @@ interface ChartData {
   findingsBySeverity: Array<{ severity: string; count: number }>;
 }
 
+interface FindingsTrendData {
+  month: string;
+  total_findings: number;
+}
+
+interface Vessel {
+  id: number;
+  vessel_name: string;
+}
+
+interface AuditType {
+  id: number;
+  type_name: string;
+}
+
 const SEVERITY_COLORS: Record<string, string> = {
   Major: "#DC2626",
   Minor: "#F59E0B",
@@ -49,11 +67,23 @@ const STATUS_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [charts, setCharts] = useState<ChartData | null>(null);
+  const [findingsTrend, setFindingsTrend] = useState<FindingsTrendData[]>([]);
+  const [vessels, setVessels] = useState<Vessel[]>([]);
+  const [auditTypes, setAuditTypes] = useState<AuditType[]>([]);
+  const [selectedVessel, setSelectedVessel] = useState<string>("");
+  const [selectedAuditType, setSelectedAuditType] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [trendLoading, setTrendLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchVessels();
+    fetchAuditTypes();
   }, []);
+
+  useEffect(() => {
+    fetchFindingsTrend();
+  }, [selectedVessel, selectedAuditType]);
 
   const fetchDashboardData = async () => {
     try {
@@ -92,6 +122,47 @@ export default function DashboardPage() {
       toast.error(error.message || "Failed to load dashboard data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVessels = async () => {
+    try {
+      const data: any = await vesselsApi.getAll();
+      setVessels(data || []);
+    } catch (error: any) {
+      console.error("Failed to load vessels:", error);
+    }
+  };
+
+  const fetchAuditTypes = async () => {
+    try {
+      const data: any = await auditTypesApi.getAll();
+      setAuditTypes(data || []);
+    } catch (error: any) {
+      console.error("Failed to load audit types:", error);
+    }
+  };
+
+  const fetchFindingsTrend = async () => {
+    try {
+      setTrendLoading(true);
+      const params: any = {};
+
+      if (selectedVessel) {
+        params.vessel_id = parseInt(selectedVessel);
+      }
+      if (selectedAuditType) {
+        params.audit_type_id = parseInt(selectedAuditType);
+      }
+
+      const data: any = await dashboardApi.getFindingsTrend(params);
+      const monthlyTotals = data?.monthly_totals || [];
+
+      setFindingsTrend(monthlyTotals);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load findings trend");
+    } finally {
+      setTrendLoading(false);
     }
   };
 
@@ -215,6 +286,87 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </Card>
           </div>
+
+          {/* Findings Trend Over Time */}
+          <Card>
+            <div className="space-y-4">
+              {/* Title and Filters */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Findings Comparison
+                </h2>
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="w-full sm:w-48">
+                    <Select
+                      label=""
+                      value={selectedVessel}
+                      onChange={(e) => setSelectedVessel(e.target.value)}
+                      options={[
+                        { value: "", label: "All Vessels" },
+                        ...vessels.map((v) => ({
+                          value: v.id.toString(),
+                          label: v.vessel_name,
+                        })),
+                      ]}
+                    />
+                  </div>
+
+                  <div className="w-full sm:w-48">
+                    <Select
+                      label=""
+                      value={selectedAuditType}
+                      onChange={(e) => setSelectedAuditType(e.target.value)}
+                      options={[
+                        { value: "", label: "All Audit Types" },
+                        ...auditTypes.map((at) => ({
+                          value: at.id.toString(),
+                          label: at.type_name,
+                        })),
+                      ]}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Line Chart */}
+              {trendLoading ? (
+                <div className="flex items-center justify-center h-80">
+                  <LoadingSpinner size="lg" />
+                </div>
+              ) : findingsTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={findingsTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 12 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="total_findings"
+                      stroke="#F59E0B"
+                      strokeWidth={2}
+                      name="Total Findings"
+                      dot={{ fill: "#F59E0B", r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-80 text-gray-500">
+                  No findings data available for the selected filters
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
       </AppLayout>
     </ProtectedRoute>

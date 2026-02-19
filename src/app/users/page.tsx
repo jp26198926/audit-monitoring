@@ -21,13 +21,15 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ArrowDownTrayIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 import { User } from "@/types";
 
 const ROLE_VARIANTS: Record<string, "default" | "info" | "success" | "danger"> =
   {
     Admin: "danger",
-    Auditor: "info",
+    Encoder: "info",
     Viewer: "success",
   };
 
@@ -45,6 +47,7 @@ export default function UsersPage() {
     role: "Viewer",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [advancedFilters, setAdvancedFilters] = useState({
@@ -179,6 +182,7 @@ export default function UsersPage() {
         role: "Viewer",
       });
     }
+    setShowPassword(false);
     setModalOpen(true);
   };
 
@@ -191,6 +195,7 @@ export default function UsersPage() {
       password: "",
       role: "Viewer",
     });
+    setShowPassword(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -438,25 +443,39 @@ export default function UsersPage() {
               required
             />
 
-            <Input
-              type="password"
-              label={
-                editingUser
-                  ? "Password (leave empty to keep current)"
-                  : "Password"
-              }
-              placeholder="Enter password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              required={!editingUser}
-              helperText={
-                editingUser
-                  ? "Leave empty to keep the current password"
-                  : "Minimum 6 characters"
-              }
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                label={
+                  editingUser
+                    ? "Password (leave empty to keep current)"
+                    : "Password"
+                }
+                placeholder="Enter password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                required={!editingUser}
+                helperText={
+                  editingUser
+                    ? "Leave empty to keep the current password"
+                    : "Minimum 6 characters"
+                }
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-9 text-gray-500 hover:text-gray-700 focus:outline-none"
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <EyeSlashIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
 
             <Select
               label="Role"
@@ -466,7 +485,7 @@ export default function UsersPage() {
               }
               options={[
                 { value: "Admin", label: "Admin - Full access" },
-                { value: "Auditor", label: "Auditor - Create/edit content" },
+                { value: "Encoder", label: "Encoder - Create/edit content" },
                 { value: "Viewer", label: "Viewer - Read-only access" },
               ]}
               required
@@ -531,7 +550,7 @@ export default function UsersPage() {
               options={[
                 { value: "", label: "All Roles" },
                 { value: "Admin", label: "Admin" },
-                { value: "Auditor", label: "Auditor" },
+                { value: "Encoder", label: "Encoder" },
                 { value: "Viewer", label: "Viewer" },
               ]}
             />

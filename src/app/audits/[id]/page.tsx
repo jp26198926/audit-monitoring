@@ -508,7 +508,7 @@ export default function AuditDetailPage() {
     return (bytes / (1024 * 1024)).toFixed(2) + " MB";
   };
 
-  const canEdit = hasRole(["Admin", "Auditor"]);
+  const canEdit = hasRole(["Admin", "Encoder"]);
 
   if (loading) {
     return (

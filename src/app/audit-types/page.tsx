@@ -204,7 +204,8 @@ export default function AuditTypesPage() {
     }
   };
 
-  const canEdit = hasRole(["Admin", "Auditor"]);
+  const canEdit = hasRole(["Admin", "Encoder"]);
+  const canDelete = hasRole(["Admin"]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredTypes.length / itemsPerPage);
@@ -231,30 +232,31 @@ export default function AuditTypesPage() {
       key: "actions",
       title: "Actions",
       className: "w-32",
-      render: (_: any, type: AuditType) =>
-        canEdit ? (
-          <div className="flex gap-2">
+      render: (_: any, type: AuditType) => (
+        <div className="flex gap-2">
+          {canEdit && (
             <button
               onClick={() => handleOpenModal(type)}
               className="text-blue-600 hover:text-blue-800"
             >
               <PencilIcon className="h-5 w-5" />
             </button>
+          )}
+          {canDelete && (
             <button
               onClick={() => handleDelete(type)}
               className="text-red-600 hover:text-red-800"
             >
               <TrashIcon className="h-5 w-5" />
             </button>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        ),
+          )}
+          {!canEdit && !canDelete && <span className="text-gray-400">-</span>}
+        </div>
+      ),
     },
   ];
-
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={["Admin", "Encoder"]}>
       <AppLayout>
         <div className="space-y-6">
           {/* Page Header */}

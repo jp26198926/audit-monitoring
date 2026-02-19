@@ -11,6 +11,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Pagination from "@/components/ui/Pagination";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { auditResultsApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   PlusIcon,
@@ -63,8 +64,7 @@ export default function AuditResultsPage() {
   const fetchAuditResults = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/audit-results");
-      const data = await response.json();
+      const data: any = await auditResultsApi.getAll();
       setAuditResults(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast.error(error.message || "Failed to load audit results");
@@ -187,28 +187,13 @@ export default function AuditResultsPage() {
     setSubmitting(true);
 
     try {
-      const url = editingResult
-        ? `/api/audit-results/${editingResult.id}`
-        : "/api/audit-results";
-
-      const method = editingResult ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Operation failed");
+      if (editingResult) {
+        await auditResultsApi.update(editingResult.id, formData);
+        toast.success("Audit result updated successfully");
+      } else {
+        await auditResultsApi.create(formData);
+        toast.success("Audit result created successfully");
       }
-
-      toast.success(
-        editingResult
-          ? "Audit result updated successfully"
-          : "Audit result created successfully",
-      );
       handleCloseModal();
       fetchAuditResults();
     } catch (error: any) {
@@ -224,15 +209,7 @@ export default function AuditResultsPage() {
     }
 
     try {
-      const response = await fetch(`/api/audit-results/${result.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to delete audit result");
-      }
-
+      await auditResultsApi.delete(result.id);
       toast.success("Audit result deleted successfully");
       fetchAuditResults();
     } catch (error: any) {
@@ -240,7 +217,8 @@ export default function AuditResultsPage() {
     }
   };
 
-  const canEdit = hasRole(["Admin"]);
+  const canEdit = hasRole(["Admin", "Encoder"]);
+  const canDelete = hasRole(["Admin"]);
 
   const columns = [
     {
@@ -276,25 +254,27 @@ export default function AuditResultsPage() {
       key: "actions",
       title: "Actions",
       className: "w-32",
-      render: (_: any, result: AuditResultType) =>
-        canEdit ? (
-          <div className="flex gap-2">
+      render: (_: any, result: AuditResultType) => (
+        <div className="flex gap-2">
+          {canEdit && (
             <button
               onClick={() => handleOpenModal(result)}
               className="text-blue-600 hover:text-blue-800"
             >
               <PencilIcon className="h-5 w-5" />
             </button>
+          )}
+          {canDelete && (
             <button
               onClick={() => handleDelete(result)}
               className="text-red-600 hover:text-red-800"
             >
               <TrashIcon className="h-5 w-5" />
             </button>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        ),
+          )}
+          {!canEdit && !canDelete && <span className="text-gray-400">-</span>}
+        </div>
+      ),
     },
   ];
 
@@ -305,7 +285,7 @@ export default function AuditResultsPage() {
   const paginatedResults = filteredResults.slice(startIndex, endIndex);
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={["Admin", "Encoder"]}>
       <AppLayout>
         <div className="space-y-6">
           {/* Header */}

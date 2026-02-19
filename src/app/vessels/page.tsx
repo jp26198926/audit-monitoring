@@ -33,6 +33,7 @@ export default function VesselsPage() {
   const [editingVessel, setEditingVessel] = useState<Vessel | null>(null);
   const [formData, setFormData] = useState({
     vessel_name: "",
+    vessel_code: "",
     registration_number: "",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -42,6 +43,7 @@ export default function VesselsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [advancedFilters, setAdvancedFilters] = useState({
     vessel_name: "",
+    vessel_code: "",
     registration_number: "",
     status: "",
   });
@@ -80,9 +82,13 @@ export default function VesselsPage() {
           vessel.vessel_name
             .toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
-          vessel.registration_number
+          vessel.vessel_code
             .toLowerCase()
-            .includes(searchQuery.toLowerCase()),
+            .includes(searchQuery.toLowerCase()) ||
+          (vessel.registration_number &&
+            vessel.registration_number
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase())),
       );
     }
 
@@ -94,8 +100,16 @@ export default function VesselsPage() {
           .includes(advancedFilters.vessel_name.toLowerCase()),
       );
     }
+    if (advancedFilters.vessel_code) {
+      filtered = filtered.filter((vessel) =>
+        vessel.vessel_code
+          .toLowerCase()
+          .includes(advancedFilters.vessel_code.toLowerCase()),
+      );
+    }
     if (advancedFilters.registration_number) {
       filtered = filtered.filter((vessel) =>
+        vessel.registration_number &&
         vessel.registration_number
           .toLowerCase()
           .includes(advancedFilters.registration_number.toLowerCase()),
@@ -154,6 +168,7 @@ export default function VesselsPage() {
   const handleClearAdvancedFilters = () => {
     setAdvancedFilters({
       vessel_name: "",
+      vessel_code: "",
       registration_number: "",
       status: "",
     });
@@ -165,11 +180,12 @@ export default function VesselsPage() {
       setEditingVessel(vessel);
       setFormData({
         vessel_name: vessel.vessel_name,
-        registration_number: vessel.registration_number,
+        vessel_code: vessel.vessel_code,
+        registration_number: vessel.registration_number || "",
       });
     } else {
       setEditingVessel(null);
-      setFormData({ vessel_name: "", registration_number: "" });
+      setFormData({ vessel_name: "", vessel_code: "", registration_number: "" });
     }
     setModalOpen(true);
   };
@@ -177,7 +193,7 @@ export default function VesselsPage() {
   const handleCloseModal = () => {
     setModalOpen(false);
     setEditingVessel(null);
-    setFormData({ vessel_name: "", registration_number: "" });
+    setFormData({ vessel_name: "", vessel_code: "", registration_number: "" });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -213,7 +229,8 @@ export default function VesselsPage() {
     }
   };
 
-  const canEdit = hasRole(["Admin", "Auditor"]);
+  const canEdit = hasRole(["Admin", "Encoder"]);
+  const canDelete = hasRole(["Admin"]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredVessels.length / itemsPerPage);
@@ -232,37 +249,44 @@ export default function VesselsPage() {
       title: "Vessel Name",
     },
     {
+      key: "vessel_code",
+      title: "Vessel Code",
+    },
+    {
       key: "registration_number",
       title: "Registration Number",
+      render: (value: string | null) => value || "-",
     },
     {
       key: "actions",
       title: "Actions",
       className: "w-32",
-      render: (_: any, vessel: Vessel) =>
-        canEdit ? (
-          <div className="flex gap-2">
+      render: (_: any, vessel: Vessel) => (
+        <div className="flex gap-2">
+          {canEdit && (
             <button
               onClick={() => handleOpenModal(vessel)}
               className="text-blue-600 hover:text-blue-800"
             >
               <PencilIcon className="h-5 w-5" />
             </button>
+          )}
+          {canDelete && (
             <button
               onClick={() => handleDelete(vessel)}
               className="text-red-600 hover:text-red-800"
             >
               <TrashIcon className="h-5 w-5" />
             </button>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        ),
+          )}
+          {!canEdit && !canDelete && <span className="text-gray-400">-</span>}
+        </div>
+      ),
     },
   ];
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={["Admin", "Encoder"]}>
       <AppLayout>
         <div className="space-y-6">
           {/* Page Header */}
@@ -327,6 +351,7 @@ export default function VesselsPage() {
 
             {/* Active Filters Display */}
             {(advancedFilters.vessel_name ||
+              advancedFilters.vessel_code ||
               advancedFilters.registration_number ||
               advancedFilters.status) && (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -334,6 +359,11 @@ export default function VesselsPage() {
                 {advancedFilters.vessel_name && (
                   <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
                     Vessel: {advancedFilters.vessel_name}
+                  </span>
+                )}
+                {advancedFilters.vessel_code && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                    Code: {advancedFilters.vessel_code}
                   </span>
                 )}
                 {advancedFilters.registration_number && (
@@ -399,8 +429,18 @@ export default function VesselsPage() {
             />
 
             <Input
+              label="Vessel Code"
+              placeholder="Enter vessel code (e.g., VSL-001)"
+              value={formData.vessel_code}
+              onChange={(e) =>
+                setFormData({ ...formData, vessel_code: e.target.value })
+              }
+              required
+            />
+
+            <Input
               label="Registration Number"
-              placeholder="Enter registration number"
+              placeholder="Enter registration number (optional)"
               value={formData.registration_number}
               onChange={(e) =>
                 setFormData({
@@ -408,7 +448,6 @@ export default function VesselsPage() {
                   registration_number: e.target.value,
                 })
               }
-              required
             />
 
             <div className="flex gap-3 justify-end pt-4">
@@ -442,6 +481,18 @@ export default function VesselsPage() {
                 setAdvancedFilters({
                   ...advancedFilters,
                   vessel_name: e.target.value,
+                })
+              }
+            />
+
+            <Input
+              label="Vessel Code"
+              placeholder="Search by vessel code"
+              value={advancedFilters.vessel_code}
+              onChange={(e) =>
+                setAdvancedFilters({
+                  ...advancedFilters,
+                  vessel_code: e.target.value,
                 })
               }
             />

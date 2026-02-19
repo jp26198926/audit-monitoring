@@ -374,7 +374,8 @@ export default function AuditsPage() {
     }
   };
 
-  const canEdit = hasRole(["Admin", "Auditor"]);
+  const canEdit = hasRole(["Admin", "Encoder"]);
+  const canDelete = hasRole(["Admin"]);
 
   const columns = [
     {
@@ -433,22 +434,22 @@ export default function AuditsPage() {
             <EyeIcon className="h-5 w-5" />
           </button>
           {canEdit && (
-            <>
-              <button
-                onClick={() => handleOpenModal(audit)}
-                className="text-blue-600 hover:text-blue-800"
-                title="Edit"
-              >
-                <PencilIcon className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => handleDelete(audit)}
-                className="text-red-600 hover:text-red-800"
-                title="Delete"
-              >
-                <TrashIcon className="h-5 w-5" />
-              </button>
-            </>
+            <button
+              onClick={() => handleOpenModal(audit)}
+              className="text-blue-600 hover:text-blue-800"
+              title="Edit"
+            >
+              <PencilIcon className="h-5 w-5" />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => handleDelete(audit)}
+              className="text-red-600 hover:text-red-800"
+              title="Delete"
+            >
+              <TrashIcon className="h-5 w-5" />
+            </button>
           )}
         </div>
       ),

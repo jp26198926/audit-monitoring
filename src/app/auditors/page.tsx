@@ -222,6 +222,7 @@ export default function AuditorsPage() {
   };
 
   const canEdit = hasRole(["Admin", "Encoder"]);
+  const canDelete = hasRole(["Admin"]);
 
   const columns = [
     {
@@ -262,25 +263,27 @@ export default function AuditorsPage() {
       key: "actions",
       title: "Actions",
       className: "w-32",
-      render: (_: any, auditor: AuditorWithCompany) =>
-        canEdit ? (
-          <div className="flex gap-2">
+      render: (_: any, auditor: AuditorWithCompany) => (
+        <div className="flex gap-2">
+          {canEdit && (
             <button
               onClick={() => handleOpenModal(auditor)}
               className="text-blue-600 hover:text-blue-800"
             >
               <PencilIcon className="h-5 w-5" />
             </button>
+          )}
+          {canDelete && (
             <button
               onClick={() => handleDelete(auditor)}
               className="text-red-600 hover:text-red-800"
             >
               <TrashIcon className="h-5 w-5" />
             </button>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        ),
+          )}
+          {!canEdit && !canDelete && <span className="text-gray-400">-</span>}
+        </div>
+      ),
     },
   ];
 
@@ -291,7 +294,7 @@ export default function AuditorsPage() {
   const paginatedAuditors = filteredAuditors.slice(startIndex, endIndex);
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={["Admin", "Encoder"]}>
       <AppLayout>
         <div className="space-y-6">
           {/* Page Header */}

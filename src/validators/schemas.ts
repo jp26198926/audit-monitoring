@@ -26,7 +26,8 @@ export const updateUserSchema = z.object({
 // Vessel schemas
 export const createVesselSchema = z.object({
   vessel_name: z.string().min(2, "Vessel name must be at least 2 characters"),
-  registration_number: z.string().min(2, "Registration number is required"),
+  vessel_code: z.string().min(2, "Vessel code must be at least 2 characters"),
+  registration_number: z.string().optional().nullable(),
   status: z.enum(["Active", "Inactive"]).optional().default("Active"),
 });
 

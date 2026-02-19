@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
+import { getAuthUser } from "@/middleware/auth.middleware";
 
 interface AuditResult extends RowDataPacket {
   id: number;
@@ -16,6 +17,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getAuthUser(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Authentication required" },
+        { status: 401 },
+      );
+    }
+
     const pool = getPool();
     const { id } = await params;
 
@@ -46,6 +56,15 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getAuthUser(req);
+
+    if (!user || (user.role !== "Admin" && user.role !== "Encoder")) {
+      return NextResponse.json(
+        { message: "Admin or Encoder access required" },
+        { status: 403 },
+      );
+    }
+
     const pool = getPool();
     const { id } = await params;
     const body = await req.json();
@@ -107,6 +126,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getAuthUser(req);
+
+    if (!user || user.role !== "Admin") {
+      return NextResponse.json(
+        { message: "Admin access required" },
+        { status: 403 },
+      );
+    }
+
     const pool = getPool();
     const { id } = await params;
 

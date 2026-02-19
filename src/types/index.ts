@@ -30,7 +30,8 @@ export interface User {
 export interface Vessel {
   id: number;
   vessel_name: string;
-  registration_number: string;
+  vessel_code: string;
+  registration_number: string | null;
   status: VesselStatus;
   created_at: Date | string;
   updated_at: Date | string;

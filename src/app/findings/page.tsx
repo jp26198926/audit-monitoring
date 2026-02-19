@@ -279,7 +279,8 @@ export default function FindingsPage() {
     setViewingFinding(null);
   };
 
-  const canEdit = hasRole(["Admin", "Auditor"]);
+  const canEdit = hasRole(["Admin", "Encoder"]);
+  const canDelete = hasRole(["Admin"]);
 
   const columns = [
     {
@@ -360,14 +361,16 @@ export default function FindingsPage() {
                   <ArrowPathIcon className="h-5 w-5" />
                 </button>
               )}
-              <button
-                onClick={() => handleDelete(finding)}
-                className="text-red-600 hover:text-red-800"
-                title="Delete"
-              >
-                <TrashIcon className="h-5 w-5" />
-              </button>
             </>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => handleDelete(finding)}
+              className="text-red-600 hover:text-red-800"
+              title="Delete"
+            >
+              <TrashIcon className="h-5 w-5" />
+            </button>
           )}
         </div>
       ),

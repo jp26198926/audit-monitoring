@@ -30,19 +30,41 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-  { name: "Vessels", href: "/vessels", icon: RectangleGroupIcon },
-  { name: "Audit Types", href: "/audit-types", icon: DocumentTextIcon },
-  { name: "Audit Parties", href: "/audit-parties", icon: UserGroupIcon },
+  {
+    name: "Vessels",
+    href: "/vessels",
+    icon: RectangleGroupIcon,
+    allowedRoles: ["Admin", "Encoder"],
+  },
+  {
+    name: "Audit Types",
+    href: "/audit-types",
+    icon: DocumentTextIcon,
+    allowedRoles: ["Admin", "Encoder"],
+  },
+  {
+    name: "Audit Parties",
+    href: "/audit-parties",
+    icon: UserGroupIcon,
+    allowedRoles: ["Admin", "Encoder"],
+  },
   {
     name: "Audit Companies",
     href: "/audit-companies",
     icon: BuildingOffice2Icon,
+    allowedRoles: ["Admin", "Encoder"],
   },
-  { name: "Auditors", href: "/auditors", icon: UserCircleIcon },
+  {
+    name: "Auditors",
+    href: "/auditors",
+    icon: UserCircleIcon,
+    allowedRoles: ["Admin", "Encoder"],
+  },
   {
     name: "Audit Results",
     href: "/audit-results",
     icon: ClipboardDocumentCheckIcon,
+    allowedRoles: ["Admin", "Encoder"],
   },
   { name: "Audits", href: "/audits", icon: ClipboardDocumentListIcon },
   { name: "Findings", href: "/findings", icon: ExclamationTriangleIcon },

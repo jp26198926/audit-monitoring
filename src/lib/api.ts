@@ -199,6 +199,8 @@ export const usersApi = {
 export const dashboardApi = {
   getStats: () => api.get("/api/dashboard/stats"),
   getCharts: () => api.get("/api/dashboard/charts"),
+  getFindingsTrend: (params?: { vessel_id?: number; audit_type_id?: number }) =>
+    api.get("/api/dashboard/findings-trend", params),
 };
 
 export const settingsApi = {
