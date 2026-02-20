@@ -108,7 +108,7 @@ export default function UsersPage() {
         (user) =>
           user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.role_name.toLowerCase().includes(searchQuery.toLowerCase()),
+          user.role_name?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
@@ -146,7 +146,7 @@ export default function UsersPage() {
             user.id,
             `"${user.name}"`,
             `"${user.email}"`,
-            user.role_name,
+            user.role_name || "",
             user.is_active ? "Yes" : "No",
           ].join(","),
         ),

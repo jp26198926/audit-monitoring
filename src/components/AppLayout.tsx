@@ -196,7 +196,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {user?.name}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">{user?.role}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.role_name}
+                  </p>
                 </div>
               </div>
               <button

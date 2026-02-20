@@ -1,13 +1,21 @@
-import { NextResponse } from "next/server";
-import { verifyAuth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { FindingController } from "@/controllers/finding.controller";
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await verifyAuth(request);
+    const user = await getAuthUser(request);
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 },
+      );
+    }
+
     const { id } = await params;
 
     const result = await FindingController.restoreFinding(parseInt(id));
