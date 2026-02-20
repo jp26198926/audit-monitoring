@@ -12,6 +12,12 @@ module.exports = {
       env: {
         NODE_ENV: "production",
       },
+      error_file: "~/.pm2/logs/audit-monitoring-error.log",
+      out_file: "~/.pm2/logs/audit-monitoring-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      merge_logs: true,
+      min_uptime: "10s",
+      max_restarts: 10,
     },
     {
       name: "audit-cron",
@@ -19,9 +25,14 @@ module.exports = {
       args: "run cron",
       cwd: "./",
       instances: 1,
-      autorestart: false,
-      cron_restart: "0 8 * * *", // Run daily at 8:00 AM
+      autorestart: true,
       watch: false,
+      env: {
+        NODE_ENV: "production",
+      },
+      error_file: "~/.pm2/logs/audit-cron-error.log",
+      out_file: "~/.pm2/logs/audit-cron-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
     },
   ],
 };
