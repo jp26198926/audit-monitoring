@@ -145,7 +145,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/audits/[id] - Delete audit (Admin only)
+// DELETE /api/audits/[id] - Soft delete audit (Admin only)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -162,7 +162,7 @@ export async function DELETE(
 
     const { id: paramId } = await params;
     const id = parseInt(paramId);
-    const result = await AuditController.deleteAudit(id);
+    const result = await AuditController.deleteAudit(id, user.userId);
 
     return NextResponse.json(result, {
       status: result.success ? 200 : 400,

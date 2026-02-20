@@ -130,7 +130,7 @@ export const auditPartiesApi = {
 };
 
 export const auditResultsApi = {
-  getAll: () => api.get("/api/audit-results"),
+  getAll: (params?: any) => api.get("/api/audit-results", params),
   getById: (id: number) => api.get(`/api/audit-results/${id}`),
   create: (data: any) => api.post("/api/audit-results", data),
   update: (id: number, data: any) => api.put(`/api/audit-results/${id}`, data),
@@ -169,6 +169,7 @@ export const auditsApi = {
   create: (data: any) => api.post("/api/audits", data),
   update: (id: number, data: any) => api.put(`/api/audits/${id}`, data),
   delete: (id: number) => api.delete(`/api/audits/${id}`),
+  restore: (id: number) => api.post(`/api/audits/${id}/restore`, {}),
 };
 
 export const findingsApi = {

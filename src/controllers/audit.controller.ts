@@ -16,10 +16,16 @@ export class AuditController {
     date_to?: string;
     page?: number;
     limit?: number;
+    include_deleted?: boolean;
   }) {
     try {
       const conditions: string[] = [];
       const values: any[] = [];
+
+      // By default, exclude deleted records unless explicitly included
+      if (!filters?.include_deleted) {
+        conditions.push("a.deleted_at IS NULL");
+      }
 
       if (filters?.vessel_id) {
         conditions.push("a.vessel_id = ?");
@@ -68,6 +74,7 @@ export class AuditController {
           ac.company_name as audit_company_name,
           ar.result_name,
           u.name as created_by_name,
+          du.name as deleted_by_name,
           (SELECT COUNT(*) FROM findings WHERE audit_id = a.id) as findings_count
         FROM audits a
         LEFT JOIN vessels v ON a.vessel_id = v.id
@@ -76,6 +83,7 @@ export class AuditController {
         LEFT JOIN audit_companies ac ON a.audit_company_id = ac.id
         LEFT JOIN audit_results ar ON a.audit_result_id = ar.id
         LEFT JOIN users u ON a.created_by = u.id
+        LEFT JOIN users du ON a.deleted_by = du.id
         ${whereClause}
         ORDER BY a.created_at DESC
         LIMIT ? OFFSET ?`,
@@ -378,12 +386,35 @@ export class AuditController {
   }
 
   /**
-   * Delete audit (Admin only)
+   * Soft delete audit (Admin only)
    */
-  static async deleteAudit(id: number) {
+  static async deleteAudit(id: number, userId: number) {
     try {
-      // Findings will be cascade deleted due to foreign key constraint
-      await query("DELETE FROM audits WHERE id = ?", [id]);
+      // Check if audit exists and is not already deleted
+      const existing = await query<RowDataPacket[]>(
+        "SELECT id, deleted_at FROM audits WHERE id = ?",
+        [id],
+      );
+
+      if (existing.length === 0) {
+        return {
+          success: false,
+          error: "Audit not found",
+        };
+      }
+
+      if (existing[0].deleted_at) {
+        return {
+          success: false,
+          error: "Audit is already deleted",
+        };
+      }
+
+      // Soft delete the audit
+      await query(
+        "UPDATE audits SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+        [userId, id],
+      );
 
       return {
         success: true,
@@ -394,6 +425,49 @@ export class AuditController {
       return {
         success: false,
         error: "Failed to delete audit",
+      };
+    }
+  }
+
+  /**
+   * Restore soft deleted audit (Admin only)
+   */
+  static async restoreAudit(id: number) {
+    try {
+      const existing = await query<RowDataPacket[]>(
+        "SELECT id, deleted_at FROM audits WHERE id = ?",
+        [id],
+      );
+
+      if (existing.length === 0) {
+        return {
+          success: false,
+          error: "Audit not found",
+        };
+      }
+
+      if (!existing[0].deleted_at) {
+        return {
+          success: false,
+          error: "Audit is not deleted",
+        };
+      }
+
+      // Restore the audit
+      await query(
+        "UPDATE audits SET deleted_at = NULL, deleted_by = NULL WHERE id = ?",
+        [id],
+      );
+
+      return {
+        success: true,
+        message: "Audit restored successfully",
+      };
+    } catch (error) {
+      console.error("Restore audit error:", error);
+      return {
+        success: false,
+        error: "Failed to restore audit",
       };
     }
   }

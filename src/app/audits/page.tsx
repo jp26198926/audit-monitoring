@@ -19,6 +19,7 @@ import {
   auditTypesApi,
   auditPartiesApi,
   auditCompaniesApi,
+  auditResultsApi,
 } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
@@ -29,6 +30,7 @@ import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
   EyeIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import {
   Audit,
@@ -40,6 +42,7 @@ import {
 } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
+import { formatDate } from "@/utils/helpers";
 
 // Extended Audit type with joined fields from API
 interface AuditWithDetails extends Audit {
@@ -49,6 +52,7 @@ interface AuditWithDetails extends Audit {
   audit_party_name?: string;
   result_name?: string;
   created_by_name?: string;
+  deleted_by_name?: string;
   findings_count?: number;
 }
 
@@ -91,11 +95,8 @@ export default function AuditsPage() {
     vessel_id: "",
     audit_type_id: "",
     status: "",
+    include_deleted: false,
   });
-
-  // Client-side pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -111,6 +112,24 @@ export default function AuditsPage() {
     audit_result_id: "",
     remarks: "",
   });
+
+  // Helper function to safely format dates for input fields
+  const formatDateForInput = (
+    date: Date | string | null | undefined,
+  ): string => {
+    if (!date) return "";
+    try {
+      // If it's already in YYYY-MM-DD format, return as is
+      if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return date;
+      }
+      // Otherwise, format it using the helper
+      return formatDate(date);
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "";
+    }
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -128,7 +147,7 @@ export default function AuditsPage() {
   const filterAudits = () => {
     let filtered = [...audits];
 
-    // Search filter
+    // Search filter - only for client-side search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -141,7 +160,6 @@ export default function AuditsPage() {
     }
 
     setFilteredAudits(filtered);
-    setCurrentPage(1); // Reset to first page when filtering
   };
 
   const fetchInitialData = async () => {
@@ -157,7 +175,7 @@ export default function AuditsPage() {
         auditTypesApi.getAll(),
         auditPartiesApi.getAll(),
         auditCompaniesApi.getAll(),
-        fetch("/api/audit-results?active=true").then((res) => res.json()),
+        auditResultsApi.getAll({ active: "true" }),
       ]);
       setVessels(Array.isArray(vesselsData) ? vesselsData : []);
       setAuditTypes(Array.isArray(typesData) ? typesData : []);
@@ -178,6 +196,7 @@ export default function AuditsPage() {
         ...(filters.vessel_id && { vessel_id: filters.vessel_id }),
         ...(filters.audit_type_id && { audit_type_id: filters.audit_type_id }),
         ...(filters.status && { status: filters.status }),
+        include_deleted: filters.include_deleted,
       };
       const data: any = await auditsApi.getAll(params);
       setAudits(Array.isArray(data.data) ? data.data : []);
@@ -201,21 +220,10 @@ export default function AuditsPage() {
           ? audit.audit_company_id.toString()
           : "",
         audit_reference: audit.audit_reference,
-        audit_start_date:
-          audit.audit_start_date instanceof Date
-            ? audit.audit_start_date.toISOString().split("T")[0]
-            : audit.audit_start_date,
-        audit_end_date: audit.audit_end_date
-          ? audit.audit_end_date instanceof Date
-            ? audit.audit_end_date.toISOString().split("T")[0]
-            : audit.audit_end_date
-          : "",
-        next_due_date: audit.next_due_date
-          ? audit.next_due_date instanceof Date
-            ? audit.next_due_date.toISOString().split("T")[0]
-            : audit.next_due_date
-          : "",
-        status: audit.status,
+        audit_start_date: formatDateForInput(audit.audit_start_date),
+        audit_end_date: formatDateForInput(audit.audit_end_date),
+        next_due_date: formatDateForInput(audit.next_due_date),
+        status: audit.status || "Planned",
         audit_result_id: audit.audit_result_id
           ? audit.audit_result_id.toString()
           : "",
@@ -287,7 +295,12 @@ export default function AuditsPage() {
   };
 
   const handleDelete = async (audit: AuditWithDetails) => {
-    if (!confirm("Are you sure you want to delete this audit?")) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this audit? It can be restored later.",
+      )
+    )
+      return;
 
     try {
       await auditsApi.delete(audit.id);
@@ -298,13 +311,30 @@ export default function AuditsPage() {
     }
   };
 
-  const handleFilterChange = (key: string, value: string) => {
+  const handleRestore = async (audit: AuditWithDetails) => {
+    if (!confirm("Are you sure you want to restore this audit?")) return;
+
+    try {
+      await auditsApi.restore(audit.id);
+      toast.success("Audit restored successfully");
+      fetchAudits();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore audit");
+    }
+  };
+
+  const handleFilterChange = (key: string, value: string | boolean) => {
     setFilters({ ...filters, [key]: value });
     setPage(1); // Reset to first page
   };
 
   const clearFilters = () => {
-    setFilters({ vessel_id: "", audit_type_id: "", status: "" });
+    setFilters({
+      vessel_id: "",
+      audit_type_id: "",
+      status: "",
+      include_deleted: false,
+    });
     setPage(1);
   };
 
@@ -381,7 +411,16 @@ export default function AuditsPage() {
     {
       key: "audit_reference",
       title: "Reference #",
-      className: "font-medium text-blue-600",
+      render: (value: string, audit: AuditWithDetails) => (
+        <div className="flex items-center gap-2">
+          <span
+            className={`font-medium ${audit.deleted_at ? "text-gray-400 line-through" : "text-blue-600"}`}
+          >
+            {value}
+          </span>
+          {audit.deleted_at && <Badge variant="default">Deleted</Badge>}
+        </div>
+      ),
     },
     {
       key: "vessel_name",
@@ -426,41 +465,51 @@ export default function AuditsPage() {
       className: "w-40",
       render: (_: any, audit: AuditWithDetails) => (
         <div className="flex gap-2">
-          <button
-            onClick={() => router.push(`/audits/${audit.id}`)}
-            className="text-green-600 hover:text-green-800"
-            title="View Details"
-          >
-            <EyeIcon className="h-5 w-5" />
-          </button>
-          {canEdit && (
-            <button
-              onClick={() => handleOpenModal(audit)}
-              className="text-blue-600 hover:text-blue-800"
-              title="Edit"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </button>
-          )}
-          {canDelete && (
-            <button
-              onClick={() => handleDelete(audit)}
-              className="text-red-600 hover:text-red-800"
-              title="Delete"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
+          {audit.deleted_at ? (
+            // Show restore button for deleted audits
+            canDelete && (
+              <button
+                onClick={() => handleRestore(audit)}
+                className="text-green-600 hover:text-green-800"
+                title="Restore"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+              </button>
+            )
+          ) : (
+            // Show normal actions for active audits
+            <>
+              <button
+                onClick={() => router.push(`/audits/${audit.id}`)}
+                className="text-green-600 hover:text-green-800"
+                title="View Details"
+              >
+                <EyeIcon className="h-5 w-5" />
+              </button>
+              {canEdit && (
+                <button
+                  onClick={() => handleOpenModal(audit)}
+                  className="text-blue-600 hover:text-blue-800"
+                  title="Edit"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => handleDelete(audit)}
+                  className="text-red-600 hover:text-red-800"
+                  title="Delete"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              )}
+            </>
           )}
         </div>
       ),
     },
   ];
-
-  // Pagination calculations
-  const totalFilteredPages = Math.ceil(filteredAudits.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedAudits = filteredAudits.slice(startIndex, endIndex);
 
   return (
     <ProtectedRoute>
@@ -531,7 +580,18 @@ export default function AuditsPage() {
                   ]}
                 />
               </div>
-              <div className="mt-4">
+              <div className="mt-4 flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={filters.include_deleted}
+                    onChange={(e) =>
+                      handleFilterChange("include_deleted", e.target.checked)
+                    }
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Show Deleted Audits
+                </label>
                 <Button variant="secondary" size="sm" onClick={clearFilters}>
                   Clear Filters
                 </Button>
@@ -578,16 +638,16 @@ export default function AuditsPage() {
               <>
                 <Table
                   columns={columns}
-                  data={paginatedAudits}
+                  data={filteredAudits}
                   emptyMessage="No audits found. Click 'Add Audit' to create one."
                 />
-                {totalFilteredPages > 1 && (
+                {totalPages > 1 && (
                   <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalFilteredPages}
-                    totalItems={filteredAudits.length}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={setCurrentPage}
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    itemsPerPage={10}
+                    onPageChange={setPage}
                   />
                 )}
               </>

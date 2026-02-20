@@ -113,6 +113,8 @@ export interface Audit {
   created_by: number;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at: Date | string | null;
+  deleted_by: number | null;
 }
 
 export interface Finding {

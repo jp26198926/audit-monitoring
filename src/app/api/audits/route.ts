@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       limit: searchParams.get("limit")
         ? parseInt(searchParams.get("limit")!)
         : 10,
+      include_deleted: searchParams.get("include_deleted") === "true",
     };
 
     const result = await AuditController.getAllAudits(filters);
