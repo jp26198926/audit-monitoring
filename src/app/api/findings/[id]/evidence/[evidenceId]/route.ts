@@ -21,7 +21,7 @@ export async function DELETE(
     }
 
     // Check if user has permission to delete
-    if (!["Admin", "Encoder", "Auditor"].includes(user.role)) {
+    if (!["Admin", "Encoder", "Auditor"].includes(user.role_name)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

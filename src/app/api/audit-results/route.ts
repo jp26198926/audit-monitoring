@@ -26,11 +26,24 @@ export async function GET(req: NextRequest) {
     const pool = getPool();
     const searchParams = req.nextUrl.searchParams;
     const activeOnly = searchParams.get("active");
+    const includeDeleted = searchParams.get("includeDeleted");
 
     let query = "SELECT * FROM audit_results";
-    if (activeOnly === "true") {
-      query += " WHERE is_active = TRUE";
+    const conditions: string[] = [];
+
+    // Default: only show non-deleted results
+    if (includeDeleted !== "true") {
+      conditions.push("deleted_at IS NULL");
     }
+
+    if (activeOnly === "true") {
+      conditions.push("is_active = TRUE");
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+
     query += " ORDER BY result_name";
 
     const [results] = await pool.query<AuditResult[]>(query);
@@ -48,7 +61,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getAuthUser(req);
 
-    if (!user || (user.role !== "Admin" && user.role !== "Encoder")) {
+    if (!user || (user.role_name !== "Admin" && user.role_name !== "Encoder")) {
       return NextResponse.json(
         { message: "Admin or Encoder access required" },
         { status: 403 },

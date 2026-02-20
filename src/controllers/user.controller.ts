@@ -5,12 +5,19 @@ import { RowDataPacket, ResultSetHeader } from "mysql2";
 
 export class UserController {
   /**
-   * Get all users
+   * Get all users (with optional deleted users)
    */
-  static async getAllUsers() {
+  static async getAllUsers(includeDeleted: boolean = false) {
     try {
+      const whereClause = includeDeleted ? "" : "WHERE u.deleted_at IS NULL";
+
       const users = await query<(User & RowDataPacket)[]>(
-        "SELECT id, name, email, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC",
+        `SELECT u.id, u.name, u.email, u.role_id, u.is_active, u.created_at, u.updated_at, 
+                u.deleted_at, u.deleted_by, r.name as role_name
+         FROM users u
+         INNER JOIN roles r ON u.role_id = r.id
+         ${whereClause}
+         ORDER BY u.created_at DESC`,
       );
 
       return {
@@ -29,10 +36,18 @@ export class UserController {
   /**
    * Get user by ID
    */
-  static async getUserById(id: number) {
+  static async getUserById(id: number, includeDeleted: boolean = false) {
     try {
+      const whereClause = includeDeleted
+        ? "WHERE u.id = ?"
+        : "WHERE u.id = ? AND u.deleted_at IS NULL";
+
       const users = await query<(User & RowDataPacket)[]>(
-        "SELECT id, name, email, role, is_active, created_at, updated_at FROM users WHERE id = ?",
+        `SELECT u.id, u.name, u.email, u.role_id, u.is_active, u.created_at, u.updated_at,
+                u.deleted_at, u.deleted_by, r.name as role_name
+         FROM users u
+         INNER JOIN roles r ON u.role_id = r.id
+         ${whereClause}`,
         [id],
       );
 
@@ -63,7 +78,7 @@ export class UserController {
     name: string;
     email: string;
     password: string;
-    role: "Admin" | "Encoder" | "Viewer";
+    role_id: number;
     is_active?: boolean;
   }) {
     try {
@@ -80,17 +95,30 @@ export class UserController {
         };
       }
 
+      // Validate role_id exists
+      const roleCheck = await query<RowDataPacket[]>(
+        "SELECT id FROM roles WHERE id = ?",
+        [data.role_id],
+      );
+
+      if (roleCheck.length === 0) {
+        return {
+          success: false,
+          error: "Invalid role_id",
+        };
+      }
+
       // Hash password
       const passwordHash = await hashPassword(data.password);
 
       // Insert user
       const result = await query<ResultSetHeader>(
-        "INSERT INTO users (name, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO users (name, email, password_hash, role_id, is_active) VALUES (?, ?, ?, ?, ?)",
         [
           data.name,
           data.email,
           passwordHash,
-          data.role,
+          data.role_id,
           data.is_active ?? true,
         ],
       );
@@ -101,7 +129,7 @@ export class UserController {
           id: result.insertId,
           name: data.name,
           email: data.email,
-          role: data.role,
+          role_id: data.role_id,
         },
         message: "User created successfully",
       };
@@ -123,7 +151,7 @@ export class UserController {
       name?: string;
       email?: string;
       password?: string;
-      role?: "Admin" | "Encoder" | "Viewer";
+      role_id?: number;
       is_active?: boolean;
     },
   ) {
@@ -144,10 +172,26 @@ export class UserController {
         updates.push("password_hash = ?");
         values.push(passwordHash);
       }
-      if (data.role) {
-        updates.push("role = ?");
-        values.push(data.role);
+
+      // Handle role_id update
+      if (data.role_id !== undefined) {
+        // Validate role_id exists
+        const roleCheck = await query<RowDataPacket[]>(
+          "SELECT id FROM roles WHERE id = ?",
+          [data.role_id],
+        );
+
+        if (roleCheck.length === 0) {
+          return {
+            success: false,
+            error: "Invalid role_id",
+          };
+        }
+
+        updates.push("role_id = ?");
+        values.push(data.role_id);
       }
+
       if (data.is_active !== undefined) {
         updates.push("is_active = ?");
         values.push(data.is_active);
@@ -180,11 +224,28 @@ export class UserController {
   }
 
   /**
-   * Delete user
+   * Soft delete user
    */
-  static async deleteUser(id: number) {
+  static async deleteUser(id: number, deletedBy: number) {
     try {
-      await query("DELETE FROM users WHERE id = ?", [id]);
+      // Check if user exists and is not already deleted
+      const users = await query<RowDataPacket[]>(
+        "SELECT id FROM users WHERE id = ? AND deleted_at IS NULL",
+        [id],
+      );
+
+      if (users.length === 0) {
+        return {
+          success: false,
+          error: "User not found or already deleted",
+        };
+      }
+
+      // Soft delete the user
+      await query(
+        "UPDATE users SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+        [deletedBy, id],
+      );
 
       return {
         success: true,
@@ -195,6 +256,65 @@ export class UserController {
       return {
         success: false,
         error: "Failed to delete user",
+      };
+    }
+  }
+
+  /**
+   * Restore soft-deleted user
+   */
+  static async restoreUser(id: number) {
+    try {
+      // Check if user exists and is deleted
+      const users = await query<RowDataPacket[]>(
+        "SELECT id FROM users WHERE id = ? AND deleted_at IS NOT NULL",
+        [id],
+      );
+
+      if (users.length === 0) {
+        return {
+          success: false,
+          error: "User not found or not deleted",
+        };
+      }
+
+      // Restore the user
+      await query(
+        "UPDATE users SET deleted_at = NULL, deleted_by = NULL WHERE id = ?",
+        [id],
+      );
+
+      return {
+        success: true,
+        message: "User restored successfully",
+      };
+    } catch (error) {
+      console.error("Restore user error:", error);
+      return {
+        success: false,
+        error: "Failed to restore user",
+      };
+    }
+  }
+
+  /**
+   * Get all active roles for dropdown
+   */
+  static async getRoles() {
+    try {
+      const roles = await query<RowDataPacket[]>(
+        "SELECT id, name, description FROM roles WHERE is_active = TRUE ORDER BY name",
+      );
+
+      return {
+        success: true,
+        data: roles,
+      };
+    } catch (error) {
+      console.error("Get roles error:", error);
+      return {
+        success: false,
+        error: "Failed to fetch roles",
       };
     }
   }

@@ -6,11 +6,21 @@ export class VesselController {
   /**
    * Get all vessels
    */
-  static async getAllVessels(activeOnly: boolean = false) {
+  static async getAllVessels(
+    activeOnly: boolean = false,
+    includeDeleted: boolean = false,
+  ) {
     try {
-      const sql = activeOnly
-        ? 'SELECT * FROM vessels WHERE status = "Active" ORDER BY vessel_name'
-        : "SELECT * FROM vessels ORDER BY vessel_name";
+      let sql = "";
+      if (activeOnly) {
+        sql = includeDeleted
+          ? 'SELECT * FROM vessels WHERE status = "Active" ORDER BY vessel_name'
+          : 'SELECT * FROM vessels WHERE status = "Active" AND deleted_at IS NULL ORDER BY vessel_name';
+      } else {
+        sql = includeDeleted
+          ? "SELECT * FROM vessels ORDER BY vessel_name"
+          : "SELECT * FROM vessels WHERE deleted_at IS NULL ORDER BY vessel_name";
+      }
 
       const vessels = await query<(Vessel & RowDataPacket)[]>(sql);
 
@@ -33,7 +43,7 @@ export class VesselController {
   static async getVesselById(id: number) {
     try {
       const vessels = await query<(Vessel & RowDataPacket)[]>(
-        "SELECT * FROM vessels WHERE id = ?",
+        "SELECT * FROM vessels WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
@@ -85,7 +95,7 @@ export class VesselController {
     } catch (error: any) {
       console.error("Create vessel error:", error);
       if (error.code === "ER_DUP_ENTRY") {
-        if (error.message.includes('vessel_code')) {
+        if (error.message.includes("vessel_code")) {
           return {
             success: false,
             error: "Vessel code already exists",
@@ -156,7 +166,7 @@ export class VesselController {
     } catch (error: any) {
       console.error("Update vessel error:", error);
       if (error.code === "ER_DUP_ENTRY") {
-        if (error.message.includes('vessel_code')) {
+        if (error.message.includes("vessel_code")) {
           return {
             success: false,
             error: "Vessel code already exists",
@@ -175,24 +185,28 @@ export class VesselController {
   }
 
   /**
-   * Delete vessel
+   * Delete vessel (soft delete)
    */
-  static async deleteVessel(id: number) {
+  static async deleteVessel(id: number, deletedBy: number) {
     try {
-      // Check if vessel is used in audits
-      const audits = await query<RowDataPacket[]>(
-        "SELECT id FROM audits WHERE vessel_id = ? LIMIT 1",
+      // Check if vessel exists and is not already deleted
+      const [vessel] = await query<RowDataPacket[]>(
+        "SELECT id FROM vessels WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
-      if (audits.length > 0) {
+      if (!vessel) {
         return {
           success: false,
-          error: "Cannot delete vessel with existing audits",
+          error: "Vessel not found or already deleted",
         };
       }
 
-      await query("DELETE FROM vessels WHERE id = ?", [id]);
+      // Soft delete the vessel
+      await query(
+        "UPDATE vessels SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+        [deletedBy, id],
+      );
 
       return {
         success: true,
@@ -203,6 +217,43 @@ export class VesselController {
       return {
         success: false,
         error: "Failed to delete vessel",
+      };
+    }
+  }
+
+  /**
+   * Restore deleted vessel
+   */
+  static async restoreVessel(id: number) {
+    try {
+      // Check if vessel exists and is deleted
+      const [vessel] = await query<RowDataPacket[]>(
+        "SELECT id FROM vessels WHERE id = ? AND deleted_at IS NOT NULL",
+        [id],
+      );
+
+      if (!vessel) {
+        return {
+          success: false,
+          error: "Vessel not found or not deleted",
+        };
+      }
+
+      // Restore the vessel
+      await query(
+        "UPDATE vessels SET deleted_at = NULL, deleted_by = NULL WHERE id = ?",
+        [id],
+      );
+
+      return {
+        success: true,
+        message: "Vessel restored successfully",
+      };
+    } catch (error) {
+      console.error("Restore vessel error:", error);
+      return {
+        success: false,
+        error: "Failed to restore vessel",
       };
     }
   }

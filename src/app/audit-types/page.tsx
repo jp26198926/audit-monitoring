@@ -9,6 +9,7 @@ import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Badge from "@/components/ui/Badge";
 import Pagination from "@/components/ui/Pagination";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { auditTypesApi } from "@/lib/api";
@@ -20,6 +21,7 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ArrowDownTrayIcon,
+  ArrowUturnLeftIcon,
 } from "@heroicons/react/24/outline";
 import { AuditType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +35,7 @@ export default function AuditTypesPage() {
   const [editingType, setEditingType] = useState<AuditType | null>(null);
   const [formData, setFormData] = useState({ type_name: "", description: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const { hasRole } = useAuth();
 
   // Search and filter states
@@ -49,7 +52,7 @@ export default function AuditTypesPage() {
 
   useEffect(() => {
     fetchAuditTypes();
-  }, []);
+  }, [showDeleted]);
 
   useEffect(() => {
     filterTypes();
@@ -58,7 +61,7 @@ export default function AuditTypesPage() {
   const fetchAuditTypes = async () => {
     try {
       setLoading(true);
-      const data: any = await auditTypesApi.getAll();
+      const data: any = await auditTypesApi.getAll(showDeleted);
       setAuditTypes(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast.error(error.message || "Failed to load audit types");
@@ -204,6 +207,18 @@ export default function AuditTypesPage() {
     }
   };
 
+  const handleRestore = async (type: AuditType) => {
+    if (!confirm(`Are you sure you want to restore ${type.type_name}?`)) return;
+
+    try {
+      await auditTypesApi.restore(type.id);
+      toast.success("Audit type restored successfully");
+      fetchAuditTypes();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore audit type");
+    }
+  };
+
   const canEdit = hasRole(["Admin", "Encoder"]);
   const canDelete = hasRole(["Admin"]);
 
@@ -222,6 +237,12 @@ export default function AuditTypesPage() {
     {
       key: "type_name",
       title: "Name",
+      render: (value: string, type: AuditType) => (
+        <div className="flex gap-2 items-center">
+          <span>{value}</span>
+          {type.deleted_at && <Badge variant="default">Deleted</Badge>}
+        </div>
+      ),
     },
     {
       key: "description",
@@ -234,23 +255,41 @@ export default function AuditTypesPage() {
       className: "w-32",
       render: (_: any, type: AuditType) => (
         <div className="flex gap-2">
-          {canEdit && (
-            <button
-              onClick={() => handleOpenModal(type)}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </button>
+          {type.deleted_at ? (
+            // Restore button for deleted types
+            canDelete && (
+              <button
+                onClick={() => handleRestore(type)}
+                className="text-green-600 hover:text-green-800"
+                title="Restore"
+              >
+                <ArrowUturnLeftIcon className="h-5 w-5" />
+              </button>
+            )
+          ) : (
+            // Regular actions for non-deleted types
+            <>
+              {canEdit && (
+                <button
+                  onClick={() => handleOpenModal(type)}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => handleDelete(type)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              )}
+              {!canEdit && !canDelete && (
+                <span className="text-gray-400">-</span>
+              )}
+            </>
           )}
-          {canDelete && (
-            <button
-              onClick={() => handleDelete(type)}
-              className="text-red-600 hover:text-red-800"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
-          )}
-          {!canEdit && !canDelete && <span className="text-gray-400">-</span>}
         </div>
       ),
     },
@@ -269,12 +308,22 @@ export default function AuditTypesPage() {
                 Manage audit types in the system
               </p>
             </div>
-            {canEdit && (
-              <Button onClick={() => handleOpenModal()}>
-                <PlusIcon className="h-5 w-5" />
-                Add Type
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {canDelete && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowDeleted(!showDeleted)}
+                >
+                  {showDeleted ? "Hide Deleted" : "Show Deleted"}
+                </Button>
+              )}
+              {canEdit && (
+                <Button onClick={() => handleOpenModal()}>
+                  <PlusIcon className="h-5 w-5" />
+                  Add Type
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Search and Filter Bar */}
@@ -357,6 +406,9 @@ export default function AuditTypesPage() {
                   columns={columns}
                   data={paginatedTypes}
                   emptyMessage="No audit types found. Click 'Add Type' to create one."
+                  getRowClassName={(type: AuditType) =>
+                    type.deleted_at ? "bg-gray-100" : ""
+                  }
                 />
                 {filteredTypes.length > 0 && (
                   <Pagination

@@ -30,7 +30,7 @@ export async function GET(
     const { id } = await params;
 
     const [results] = await pool.query<AuditResult[]>(
-      "SELECT * FROM audit_results WHERE id = ?",
+      "SELECT * FROM audit_results WHERE id = ? AND deleted_at IS NULL",
       [id],
     );
 
@@ -58,7 +58,7 @@ export async function PUT(
   try {
     const user = await getAuthUser(req);
 
-    if (!user || (user.role !== "Admin" && user.role !== "Encoder")) {
+    if (!user || (user.role_name !== "Admin" && user.role_name !== "Encoder")) {
       return NextResponse.json(
         { message: "Admin or Encoder access required" },
         { status: 403 },
@@ -128,7 +128,7 @@ export async function DELETE(
   try {
     const user = await getAuthUser(req);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { message: "Admin access required" },
         { status: 403 },
@@ -138,36 +138,24 @@ export async function DELETE(
     const pool = getPool();
     const { id } = await params;
 
-    // Check if audit result exists
+    // Check if audit result exists and is not already deleted
     const [existing] = await pool.query<AuditResult[]>(
-      "SELECT id FROM audit_results WHERE id = ?",
+      "SELECT id FROM audit_results WHERE id = ? AND deleted_at IS NULL",
       [id],
     );
 
     if (existing.length === 0) {
       return NextResponse.json(
-        { message: "Audit result not found" },
+        { message: "Audit result not found or already deleted" },
         { status: 404 },
       );
     }
 
-    // Check if audit result is being used
-    const [auditsUsing] = await pool.query<RowDataPacket[]>(
-      "SELECT COUNT(*) as count FROM audits WHERE audit_result_id = ?",
-      [id],
+    // Soft delete the audit result
+    await pool.query(
+      "UPDATE audit_results SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+      [user.userId, id],
     );
-
-    if (auditsUsing[0].count > 0) {
-      return NextResponse.json(
-        {
-          message:
-            "Cannot delete audit result as it is being used by existing audits",
-        },
-        { status: 409 },
-      );
-    }
-
-    await pool.query("DELETE FROM audit_results WHERE id = ?", [id]);
 
     return NextResponse.json({ message: "Audit result deleted successfully" });
   } catch (error) {

@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if user is Admin
-    if (user.role !== "Admin") {
+    if (user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Forbidden: Admin access required" },
         { status: 403 },

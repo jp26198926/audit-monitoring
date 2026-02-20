@@ -10,6 +10,7 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Pagination from "@/components/ui/Pagination";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Badge from "@/components/ui/Badge";
 import { auditPartiesApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
@@ -19,6 +20,7 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ArrowDownTrayIcon,
+  ArrowUturnLeftIcon,
 } from "@heroicons/react/24/outline";
 import { AuditParty } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,10 +43,11 @@ export default function AuditPartiesPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   useEffect(() => {
     fetchAuditParties();
-  }, []);
+  }, [showDeleted]);
 
   useEffect(() => {
     filterParties();
@@ -53,7 +56,7 @@ export default function AuditPartiesPage() {
   const fetchAuditParties = async () => {
     try {
       setLoading(true);
-      const data: any = await auditPartiesApi.getAll();
+      const data: any = await auditPartiesApi.getAll(showDeleted);
       setAuditParties(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast.error(error.message || "Failed to load audit parties");
@@ -171,6 +174,19 @@ export default function AuditPartiesPage() {
     }
   };
 
+  const handleRestore = async (party: AuditParty) => {
+    if (!confirm(`Are you sure you want to restore ${party.party_name}?`))
+      return;
+
+    try {
+      await auditPartiesApi.restore(party.id);
+      toast.success("Audit party restored successfully");
+      fetchAuditParties();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore audit party");
+    }
+  };
+
   const canEdit = hasRole(["Admin", "Encoder"]);
   const canDelete = hasRole(["Admin"]);
 
@@ -188,6 +204,16 @@ export default function AuditPartiesPage() {
     {
       key: "party_name",
       title: "Name",
+      render: (value: string, party: AuditParty) => (
+        <div className="flex items-center gap-2">
+          <span>{value}</span>
+          {party.deleted_at && (
+            <Badge variant="danger" size="sm">
+              Deleted
+            </Badge>
+          )}
+        </div>
+      ),
     },
     {
       key: "actions",
@@ -195,27 +221,45 @@ export default function AuditPartiesPage() {
       className: "w-32",
       render: (_: any, party: AuditParty) => (
         <div className="flex gap-2">
-          {canEdit && (
-            <button
-              onClick={() => handleOpenModal(party)}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </button>
-          )}
-          {canDelete && (
-            <button
-              onClick={() => handleDelete(party)}
-              className="text-red-600 hover:text-red-800"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
+          {party.deleted_at ? (
+            canDelete && (
+              <button
+                onClick={() => handleRestore(party)}
+                className="text-green-600 hover:text-green-800"
+                title="Restore"
+              >
+                <ArrowUturnLeftIcon className="h-5 w-5" />
+              </button>
+            )
+          ) : (
+            <>
+              {canEdit && (
+                <button
+                  onClick={() => handleOpenModal(party)}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => handleDelete(party)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              )}
+            </>
           )}
           {!canEdit && !canDelete && <span className="text-gray-400">-</span>}
         </div>
       ),
     },
   ];
+
+  const getRowClassName = (party: AuditParty) => {
+    return party.deleted_at ? "bg-gray-100" : "";
+  };
 
   return (
     <ProtectedRoute allowedRoles={["Admin", "Encoder"]}>
@@ -231,12 +275,22 @@ export default function AuditPartiesPage() {
                 Manage audit parties and organizations
               </p>
             </div>
-            {canEdit && (
-              <Button onClick={() => handleOpenModal()}>
-                <PlusIcon className="h-5 w-5" />
-                Add Party
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {canDelete && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowDeleted(!showDeleted)}
+                >
+                  {showDeleted ? "Hide Deleted" : "Show Deleted"}
+                </Button>
+              )}
+              {canEdit && (
+                <Button onClick={() => handleOpenModal()}>
+                  <PlusIcon className="h-5 w-5" />
+                  Add Party
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Search and Filter Bar */}
@@ -304,6 +358,7 @@ export default function AuditPartiesPage() {
                   columns={columns}
                   data={paginatedParties}
                   emptyMessage="No audit parties found. Click 'Add Party' to create one."
+                  getRowClassName={getRowClassName}
                 />
                 {filteredParties.length > 0 && (
                   <Pagination

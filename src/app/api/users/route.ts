@@ -8,14 +8,18 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Admin access required" },
         { status: 403 },
       );
     }
 
-    const result = await UserController.getAllUsers();
+    // Get query parameter for including deleted users
+    const includeDeleted =
+      request.nextUrl.searchParams.get("includeDeleted") === "true";
+
+    const result = await UserController.getAllUsers(includeDeleted);
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
@@ -32,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Admin access required" },
         { status: 403 },

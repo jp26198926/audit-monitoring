@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, extractTokenFromHeader } from "@/lib/auth";
-import { JWTPayload, UserRole } from "@/types";
+import { JWTPayload } from "@/types";
 
 export interface AuthenticatedRequest extends NextRequest {
   user: JWTPayload;
@@ -43,7 +43,7 @@ export function authenticate(
 /**
  * Middleware to check user role
  */
-export function authorize(allowedRoles: UserRole[]) {
+export function authorize(allowedRoles: string[]) {
   return (handler: (req: AuthenticatedRequest) => Promise<NextResponse>) => {
     return async (req: NextRequest): Promise<NextResponse> => {
       try {
@@ -59,7 +59,7 @@ export function authorize(allowedRoles: UserRole[]) {
 
         const decoded = verifyToken(token);
 
-        if (!allowedRoles.includes(decoded.role)) {
+        if (!allowedRoles.includes(decoded.role_name)) {
           return NextResponse.json(
             { success: false, error: "Insufficient permissions" },
             { status: 403 },

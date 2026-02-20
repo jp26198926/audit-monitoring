@@ -11,7 +11,7 @@ export async function GET(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Admin access required" },
         { status: 403 },
@@ -42,7 +42,7 @@ export async function PUT(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Admin access required" },
         { status: 403 },
@@ -80,7 +80,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/users/[id] - Delete user (Admin only)
+// DELETE /api/users/[id] - Soft delete user (Admin only)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -88,7 +88,7 @@ export async function DELETE(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Admin access required" },
         { status: 403 },
@@ -97,7 +97,7 @@ export async function DELETE(
 
     const { id: paramId } = await params;
     const id = parseInt(paramId);
-    const result = await UserController.deleteUser(id);
+    const result = await UserController.deleteUser(id, user.userId);
 
     return NextResponse.json(result, {
       status: result.success ? 200 : 400,

@@ -21,10 +21,13 @@ export interface User {
   name: string;
   email: string;
   password_hash: string;
-  role: UserRole;
+  role_id: number;
+  role_name?: string;
   is_active: boolean;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  deleted_by?: number | null;
 }
 
 export interface Vessel {
@@ -35,6 +38,8 @@ export interface Vessel {
   status: VesselStatus;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  deleted_by?: number | null;
 }
 
 export interface AuditType {
@@ -44,6 +49,8 @@ export interface AuditType {
   is_active: boolean;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  deleted_by?: number | null;
 }
 
 export interface AuditParty {
@@ -51,6 +58,8 @@ export interface AuditParty {
   party_name: string;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  deleted_by?: number | null;
 }
 
 export interface AuditCompany {
@@ -63,6 +72,8 @@ export interface AuditCompany {
   is_active: boolean;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  deleted_by?: number | null;
 }
 
 export interface Auditor {
@@ -76,6 +87,8 @@ export interface Auditor {
   is_active: boolean;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  deleted_by?: number | null;
 }
 
 export interface AuditAuditor {
@@ -93,6 +106,8 @@ export interface AuditResultType {
   is_active: boolean;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  deleted_by?: number | null;
 }
 
 export interface Audit {
@@ -130,6 +145,8 @@ export interface Finding {
   closure_date: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  deleted_by?: number | null;
 }
 
 export interface Attachment {
@@ -143,7 +160,8 @@ export interface Attachment {
 export interface JWTPayload {
   userId: number;
   email: string;
-  role: UserRole;
+  role_id: number;
+  role_name: string;
   name: string;
 }
 
@@ -197,4 +215,49 @@ export interface CompanySettings {
   logo_path: string | null;
   created_at: Date | string;
   updated_at: Date | string;
+}
+
+// RBAC Types
+export interface Permission {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export interface Page {
+  id: number;
+  name: string;
+  path: string;
+  description: string | null;
+  icon: string | null;
+  is_active: boolean;
+  display_order: number;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export interface Role {
+  id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export interface RolePermission {
+  id: number;
+  role_id: number;
+  page_id: number;
+  permission_id: number;
+  created_at: Date | string;
+}
+
+export interface RolePermissionDetail extends RolePermission {
+  role_name?: string;
+  page_name?: string;
+  page_path?: string;
+  permission_name?: string;
 }

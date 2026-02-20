@@ -28,7 +28,7 @@ export default function ProtectedRoute({
     }
 
     if (!loading && isAuthenticated && allowedRoles && user) {
-      if (!allowedRoles.includes(user.role)) {
+      if (!allowedRoles.includes(user.role_name)) {
         router.push("/dashboard");
       }
     }
@@ -43,7 +43,7 @@ export default function ProtectedRoute({
     return <LoadingSpinner fullScreen />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && user && !allowedRoles.includes(user.role_name)) {
     return <LoadingSpinner fullScreen />;
   }
 

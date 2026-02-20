@@ -6,11 +6,21 @@ export class AuditTypeController {
   /**
    * Get all audit types
    */
-  static async getAllAuditTypes(activeOnly: boolean = false) {
+  static async getAllAuditTypes(
+    activeOnly: boolean = false,
+    includeDeleted: boolean = false,
+  ) {
     try {
-      const sql = activeOnly
-        ? "SELECT * FROM audit_types WHERE is_active = TRUE ORDER BY type_name"
-        : "SELECT * FROM audit_types ORDER BY type_name";
+      let sql = "";
+      if (activeOnly) {
+        sql = includeDeleted
+          ? "SELECT * FROM audit_types WHERE is_active = TRUE ORDER BY type_name"
+          : "SELECT * FROM audit_types WHERE is_active = TRUE AND deleted_at IS NULL ORDER BY type_name";
+      } else {
+        sql = includeDeleted
+          ? "SELECT * FROM audit_types ORDER BY type_name"
+          : "SELECT * FROM audit_types WHERE deleted_at IS NULL ORDER BY type_name";
+      }
 
       const types = await query<(AuditType & RowDataPacket)[]>(sql);
 
@@ -33,7 +43,7 @@ export class AuditTypeController {
   static async getAuditTypeById(id: number) {
     try {
       const types = await query<(AuditType & RowDataPacket)[]>(
-        "SELECT * FROM audit_types WHERE id = ?",
+        "SELECT * FROM audit_types WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
@@ -152,24 +162,28 @@ export class AuditTypeController {
   }
 
   /**
-   * Delete audit type
+   * Delete audit type (soft delete)
    */
-  static async deleteAuditType(id: number) {
+  static async deleteAuditType(id: number, deletedBy: number) {
     try {
-      // Check if audit type is used in audits
-      const audits = await query<RowDataPacket[]>(
-        "SELECT id FROM audits WHERE audit_type_id = ? LIMIT 1",
+      // Check if audit type exists and is not already deleted
+      const [auditType] = await query<RowDataPacket[]>(
+        "SELECT id FROM audit_types WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
-      if (audits.length > 0) {
+      if (!auditType) {
         return {
           success: false,
-          error: "Cannot delete audit type with existing audits",
+          error: "Audit type not found or already deleted",
         };
       }
 
-      await query("DELETE FROM audit_types WHERE id = ?", [id]);
+      // Soft delete the audit type
+      await query(
+        "UPDATE audit_types SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+        [deletedBy, id],
+      );
 
       return {
         success: true,
@@ -180,6 +194,43 @@ export class AuditTypeController {
       return {
         success: false,
         error: "Failed to delete audit type",
+      };
+    }
+  }
+
+  /**
+   * Restore deleted audit type
+   */
+  static async restoreAuditType(id: number) {
+    try {
+      // Check if audit type exists and is deleted
+      const [auditType] = await query<RowDataPacket[]>(
+        "SELECT id FROM audit_types WHERE id = ? AND deleted_at IS NOT NULL",
+        [id],
+      );
+
+      if (!auditType) {
+        return {
+          success: false,
+          error: "Audit type not found or not deleted",
+        };
+      }
+
+      // Restore the audit type
+      await query(
+        "UPDATE audit_types SET deleted_at = NULL, deleted_by = NULL WHERE id = ?",
+        [id],
+      );
+
+      return {
+        success: true,
+        message: "Audit type restored successfully",
+      };
+    } catch (error) {
+      console.error("Restore audit type error:", error);
+      return {
+        success: false,
+        error: "Failed to restore audit type",
       };
     }
   }

@@ -9,10 +9,16 @@ export class AuditorController {
   static async getAllAuditors(filters?: {
     active?: boolean;
     company_id?: number;
+    includeDeleted?: boolean;
   }) {
     try {
       const conditions: string[] = [];
       const values: any[] = [];
+
+      // Default: only show non-deleted auditors
+      if (!filters?.includeDeleted) {
+        conditions.push("a.deleted_at IS NULL");
+      }
 
       if (filters?.active !== undefined) {
         conditions.push("a.is_active = ?");
@@ -60,7 +66,7 @@ export class AuditorController {
           c.company_name as company_name
         FROM auditors a
         LEFT JOIN audit_companies c ON a.audit_company_id = c.id
-        WHERE a.id = ?`,
+        WHERE a.id = ? AND a.deleted_at IS NULL`,
         [id],
       );
 
@@ -243,34 +249,28 @@ export class AuditorController {
   }
 
   /**
-   * Delete auditor
+   * Delete auditor (soft delete)
    */
-  static async deleteAuditor(id: number) {
+  static async deleteAuditor(id: number, deletedBy: number) {
     try {
-      // Check if auditor is assigned to any audits
-      const [assignments] = await query<RowDataPacket[]>(
-        "SELECT COUNT(*) as count FROM audit_auditors WHERE auditor_id = ?",
+      // Check if auditor exists and is not already deleted
+      const [auditor] = await query<RowDataPacket[]>(
+        "SELECT * FROM auditors WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
-      if (assignments.count > 0) {
+      if (!auditor) {
         return {
           success: false,
-          error: `Cannot delete auditor. They are assigned to ${assignments.count} audit(s).`,
+          error: "Auditor not found or already deleted",
         };
       }
 
-      const result = await query<ResultSetHeader>(
-        "DELETE FROM auditors WHERE id = ?",
-        [id],
+      // Soft delete the auditor
+      await query(
+        "UPDATE auditors SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+        [deletedBy, id],
       );
-
-      if (result.affectedRows === 0) {
-        return {
-          success: false,
-          error: "Auditor not found",
-        };
-      }
 
       return {
         success: true,
@@ -281,6 +281,43 @@ export class AuditorController {
       return {
         success: false,
         error: "Failed to delete auditor",
+      };
+    }
+  }
+
+  /**
+   * Restore deleted auditor
+   */
+  static async restoreAuditor(id: number) {
+    try {
+      // Check if auditor exists and is deleted
+      const [auditor] = await query<RowDataPacket[]>(
+        "SELECT * FROM auditors WHERE id = ? AND deleted_at IS NOT NULL",
+        [id],
+      );
+
+      if (!auditor) {
+        return {
+          success: false,
+          error: "Auditor not found or not deleted",
+        };
+      }
+
+      // Restore the auditor
+      await query(
+        "UPDATE auditors SET deleted_at = NULL, deleted_by = NULL WHERE id = ?",
+        [id],
+      );
+
+      return {
+        success: true,
+        message: "Auditor restored successfully",
+      };
+    } catch (error) {
+      console.error("Restore auditor error:", error);
+      return {
+        success: false,
+        error: "Failed to restore auditor",
       };
     }
   }

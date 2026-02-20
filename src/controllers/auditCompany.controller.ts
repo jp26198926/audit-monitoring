@@ -6,10 +6,18 @@ export class AuditCompanyController {
   /**
    * Get all audit companies
    */
-  static async getAllAuditCompanies(filters?: { active?: boolean }) {
+  static async getAllAuditCompanies(filters?: {
+    active?: boolean;
+    includeDeleted?: boolean;
+  }) {
     try {
       const conditions: string[] = [];
       const values: any[] = [];
+
+      // Default: only show non-deleted companies
+      if (!filters?.includeDeleted) {
+        conditions.push("deleted_at IS NULL");
+      }
 
       if (filters?.active !== undefined) {
         conditions.push("is_active = ?");
@@ -43,7 +51,7 @@ export class AuditCompanyController {
   static async getAuditCompanyById(id: number) {
     try {
       const [company] = await query<RowDataPacket[]>(
-        "SELECT * FROM audit_companies WHERE id = ?",
+        "SELECT * FROM audit_companies WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
@@ -189,24 +197,28 @@ export class AuditCompanyController {
   }
 
   /**
-   * Delete audit company
+   * Delete audit company (soft delete)
    */
-  static async deleteAuditCompany(id: number) {
+  static async deleteAuditCompany(id: number, deletedBy: number) {
     try {
-      // Check if company is being used in any audits
-      const [auditCount] = await query<RowDataPacket[]>(
-        "SELECT COUNT(*) as count FROM audits WHERE audit_company_id = ?",
+      // Check if company exists and is not already deleted
+      const [company] = await query<RowDataPacket[]>(
+        "SELECT * FROM audit_companies WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
-      if (auditCount.count > 0) {
+      if (!company) {
         return {
           success: false,
-          error: `Cannot delete company. It is being used in ${auditCount.count} audit(s)`,
+          error: "Audit company not found or already deleted",
         };
       }
 
-      await query("DELETE FROM audit_companies WHERE id = ?", [id]);
+      // Soft delete the company
+      await query(
+        "UPDATE audit_companies SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+        [deletedBy, id],
+      );
 
       return {
         success: true,
@@ -217,6 +229,43 @@ export class AuditCompanyController {
       return {
         success: false,
         error: "Failed to delete audit company",
+      };
+    }
+  }
+
+  /**
+   * Restore deleted audit company
+   */
+  static async restoreAuditCompany(id: number) {
+    try {
+      // Check if company exists and is deleted
+      const [company] = await query<RowDataPacket[]>(
+        "SELECT * FROM audit_companies WHERE id = ? AND deleted_at IS NOT NULL",
+        [id],
+      );
+
+      if (!company) {
+        return {
+          success: false,
+          error: "Audit company not found or not deleted",
+        };
+      }
+
+      // Restore the company
+      await query(
+        "UPDATE audit_companies SET deleted_at = NULL, deleted_by = NULL WHERE id = ?",
+        [id],
+      );
+
+      return {
+        success: true,
+        message: "Audit company restored successfully",
+      };
+    } catch (error) {
+      console.error("Restore audit company error:", error);
+      return {
+        success: false,
+        error: "Failed to restore audit company",
       };
     }
   }

@@ -55,7 +55,7 @@ export async function POST(
     }
 
     // Check if user has Admin or Encoder role
-    if (!["Admin", "Encoder"].includes(user.role)) {
+    if (!["Admin", "Encoder"].includes(user.role_name)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

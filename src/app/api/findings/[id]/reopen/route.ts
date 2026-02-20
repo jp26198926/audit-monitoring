@@ -10,7 +10,7 @@ export async function POST(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Admin access required" },
         { status: 403 },

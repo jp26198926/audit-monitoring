@@ -6,11 +6,13 @@ export class AuditPartyController {
   /**
    * Get all audit parties
    */
-  static async getAllAuditParties() {
+  static async getAllAuditParties(includeDeleted: boolean = false) {
     try {
-      const parties = await query<(AuditParty & RowDataPacket)[]>(
-        "SELECT * FROM audit_parties ORDER BY party_name",
-      );
+      const sql = includeDeleted
+        ? "SELECT * FROM audit_parties ORDER BY party_name"
+        : "SELECT * FROM audit_parties WHERE deleted_at IS NULL ORDER BY party_name";
+
+      const parties = await query<(AuditParty & RowDataPacket)[]>(sql);
 
       return {
         success: true,
@@ -31,7 +33,7 @@ export class AuditPartyController {
   static async getAuditPartyById(id: number) {
     try {
       const parties = await query<(AuditParty & RowDataPacket)[]>(
-        "SELECT * FROM audit_parties WHERE id = ?",
+        "SELECT * FROM audit_parties WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
@@ -132,24 +134,28 @@ export class AuditPartyController {
   }
 
   /**
-   * Delete audit party
+   * Delete audit party (soft delete)
    */
-  static async deleteAuditParty(id: number) {
+  static async deleteAuditParty(id: number, deletedBy: number) {
     try {
-      // Check if audit party is used in audits
-      const audits = await query<RowDataPacket[]>(
-        "SELECT id FROM audits WHERE audit_party_id = ? LIMIT 1",
+      // Check if audit party exists and is not already deleted
+      const [auditParty] = await query<RowDataPacket[]>(
+        "SELECT id FROM audit_parties WHERE id = ? AND deleted_at IS NULL",
         [id],
       );
 
-      if (audits.length > 0) {
+      if (!auditParty) {
         return {
           success: false,
-          error: "Cannot delete audit party with existing audits",
+          error: "Audit party not found or already deleted",
         };
       }
 
-      await query("DELETE FROM audit_parties WHERE id = ?", [id]);
+      // Soft delete the audit party
+      await query(
+        "UPDATE audit_parties SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+        [deletedBy, id],
+      );
 
       return {
         success: true,
@@ -160,6 +166,43 @@ export class AuditPartyController {
       return {
         success: false,
         error: "Failed to delete audit party",
+      };
+    }
+  }
+
+  /**
+   * Restore deleted audit party
+   */
+  static async restoreAuditParty(id: number) {
+    try {
+      // Check if audit party exists and is deleted
+      const [auditParty] = await query<RowDataPacket[]>(
+        "SELECT id FROM audit_parties WHERE id = ? AND deleted_at IS NOT NULL",
+        [id],
+      );
+
+      if (!auditParty) {
+        return {
+          success: false,
+          error: "Audit party not found or not deleted",
+        };
+      }
+
+      // Restore the audit party
+      await query(
+        "UPDATE audit_parties SET deleted_at = NULL, deleted_by = NULL WHERE id = ?",
+        [id],
+      );
+
+      return {
+        success: true,
+        message: "Audit party restored successfully",
+      };
+    } catch (error) {
+      console.error("Restore audit party error:", error);
+      return {
+        success: false,
+        error: "Failed to restore audit party",
       };
     }
   }

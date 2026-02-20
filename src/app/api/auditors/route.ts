@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const active = searchParams.get("active");
     const company_id = searchParams.get("company_id");
+    const includeDeleted = searchParams.get("includeDeleted");
 
     const filters: any = {};
     if (active !== null) {
@@ -24,6 +25,9 @@ export async function GET(request: NextRequest) {
     }
     if (company_id) {
       filters.company_id = parseInt(company_id);
+    }
+    if (includeDeleted !== null) {
+      filters.includeDeleted = includeDeleted === "true";
     }
 
     const result = await AuditorController.getAllAuditors(filters);
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has Admin or Encoder role
-    if (!["Admin", "Encoder"].includes(user.role)) {
+    if (!["Admin", "Encoder"].includes(user.role_name)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

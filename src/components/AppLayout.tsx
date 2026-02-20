@@ -19,17 +19,24 @@ import {
   UsersIcon,
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
+  ShieldCheckIcon,
+  DocumentDuplicateIcon,
+  KeyIcon,
 } from "@heroicons/react/24/outline";
 
 interface NavItem {
   name: string;
-  href: string;
-  icon: any;
+  href?: string;
+  icon?: any;
   allowedRoles?: string[];
+  isDivider?: boolean;
 }
 
 const navigation: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
+  { name: "Audits", href: "/audits", icon: ClipboardDocumentListIcon },
+  { name: "Findings", href: "/findings", icon: ExclamationTriangleIcon },
+  { name: "divider-1", isDivider: true },
   {
     name: "Vessels",
     href: "/vessels",
@@ -66,9 +73,26 @@ const navigation: NavItem[] = [
     icon: ClipboardDocumentCheckIcon,
     allowedRoles: ["Admin", "Encoder"],
   },
-  { name: "Audits", href: "/audits", icon: ClipboardDocumentListIcon },
-  { name: "Findings", href: "/findings", icon: ExclamationTriangleIcon },
+  { name: "divider-2", isDivider: true },
   { name: "Users", href: "/users", icon: UsersIcon, allowedRoles: ["Admin"] },
+  {
+    name: "Permissions",
+    href: "/permissions",
+    icon: KeyIcon,
+    allowedRoles: ["Admin"],
+  },
+  {
+    name: "Pages",
+    href: "/pages",
+    icon: DocumentDuplicateIcon,
+    allowedRoles: ["Admin"],
+  },
+  {
+    name: "Roles",
+    href: "/roles",
+    icon: ShieldCheckIcon,
+    allowedRoles: ["Admin"],
+  },
   {
     name: "Settings",
     href: "/settings",
@@ -127,13 +151,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Navigation */}
             <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
               {filteredNavigation.map((item) => {
+                if (item.isDivider) {
+                  return (
+                    <div
+                      key={item.name}
+                      className="my-2 border-t border-gray-200"
+                    />
+                  );
+                }
+
                 const isActive =
                   pathname === item.href ||
                   pathname?.startsWith(item.href + "/");
                 return (
                   <Link
                     key={item.name}
-                    href={item.href}
+                    href={item.href!}
                     className={`
                     flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
                     ${

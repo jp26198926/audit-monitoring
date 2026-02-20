@@ -45,7 +45,7 @@ export async function POST(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || !["Admin", "Encoder", "Auditor"].includes(user.role)) {
+    if (!user || !["Admin", "Encoder", "Auditor"].includes(user.role_name)) {
       return NextResponse.json(
         { success: false, error: "Insufficient permissions" },
         { status: 403 },

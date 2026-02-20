@@ -106,27 +106,41 @@ export const authApi = {
 };
 
 export const vesselsApi = {
-  getAll: () => api.get("/api/vessels"),
+  getAll: (includeDeleted?: boolean) =>
+    api.get(
+      "/api/vessels",
+      includeDeleted ? { includeDeleted: "true" } : undefined,
+    ),
   getById: (id: number) => api.get(`/api/vessels/${id}`),
   create: (data: any) => api.post("/api/vessels", data),
   update: (id: number, data: any) => api.put(`/api/vessels/${id}`, data),
   delete: (id: number) => api.delete(`/api/vessels/${id}`),
+  restore: (id: number) => api.post(`/api/vessels/${id}/restore`, {}),
 };
 
 export const auditTypesApi = {
-  getAll: () => api.get("/api/audit-types"),
+  getAll: (includeDeleted?: boolean) =>
+    api.get(
+      "/api/audit-types",
+      includeDeleted ? { includeDeleted: "true" } : undefined,
+    ),
   getById: (id: number) => api.get(`/api/audit-types/${id}`),
   create: (data: any) => api.post("/api/audit-types", data),
   update: (id: number, data: any) => api.put(`/api/audit-types/${id}`, data),
   delete: (id: number) => api.delete(`/api/audit-types/${id}`),
+  restore: (id: number) => api.post(`/api/audit-types/${id}/restore`, {}),
 };
 
 export const auditPartiesApi = {
-  getAll: () => api.get("/api/audit-parties"),
+  getAll: (includeDeleted?: boolean) =>
+    api.get(
+      `/api/audit-parties${includeDeleted ? "?includeDeleted=true" : ""}`,
+    ),
   getById: (id: number) => api.get(`/api/audit-parties/${id}`),
   create: (data: any) => api.post("/api/audit-parties", data),
   update: (id: number, data: any) => api.put(`/api/audit-parties/${id}`, data),
   delete: (id: number) => api.delete(`/api/audit-parties/${id}`),
+  restore: (id: number) => api.post(`/api/audit-parties/${id}/restore`, {}),
 };
 
 export const auditResultsApi = {
@@ -135,6 +149,7 @@ export const auditResultsApi = {
   create: (data: any) => api.post("/api/audit-results", data),
   update: (id: number, data: any) => api.put(`/api/audit-results/${id}`, data),
   delete: (id: number) => api.delete(`/api/audit-results/${id}`),
+  restore: (id: number) => api.post(`/api/audit-results/${id}/restore`, {}),
 };
 
 export const auditCompaniesApi = {
@@ -144,6 +159,7 @@ export const auditCompaniesApi = {
   update: (id: number, data: any) =>
     api.put(`/api/audit-companies/${id}`, data),
   delete: (id: number) => api.delete(`/api/audit-companies/${id}`),
+  restore: (id: number) => api.post(`/api/audit-companies/${id}/restore`, {}),
 };
 
 export const auditorsApi = {
@@ -152,6 +168,7 @@ export const auditorsApi = {
   create: (data: any) => api.post("/api/auditors", data),
   update: (id: number, data: any) => api.put(`/api/auditors/${id}`, data),
   delete: (id: number) => api.delete(`/api/auditors/${id}`),
+  restore: (id: number) => api.post(`/api/auditors/${id}/restore`, {}),
   // Audit-specific auditor methods
   getAuditAuditors: (auditId: number) =>
     api.get(`/api/audits/${auditId}/auditors`),
@@ -178,6 +195,7 @@ export const findingsApi = {
   create: (data: any) => api.post("/api/findings", data),
   update: (id: number, data: any) => api.put(`/api/findings/${id}`, data),
   delete: (id: number) => api.delete(`/api/findings/${id}`),
+  restore: (id: number) => api.post(`/api/findings/${id}/restore`, {}),
   close: (id: number, data: any) => api.post(`/api/findings/${id}/close`, data),
   reopen: (id: number, reason: string) =>
     api.post(`/api/findings/${id}/reopen`, { reason }),
@@ -190,11 +208,17 @@ export const findingsApi = {
 };
 
 export const usersApi = {
-  getAll: () => api.get("/api/users"),
+  getAll: (includeDeleted?: boolean) =>
+    api.get(
+      "/api/users",
+      includeDeleted ? { includeDeleted: "true" } : undefined,
+    ),
   getById: (id: number) => api.get(`/api/users/${id}`),
   create: (data: any) => api.post("/api/users", data),
   update: (id: number, data: any) => api.put(`/api/users/${id}`, data),
   delete: (id: number) => api.delete(`/api/users/${id}`),
+  restore: (id: number) => api.post(`/api/users/${id}/restore`, {}),
+  getRoles: () => api.get("/api/users/roles"),
 };
 
 export const dashboardApi = {
@@ -207,4 +231,30 @@ export const dashboardApi = {
 export const settingsApi = {
   get: () => api.get("/api/settings"),
   update: (data: any) => api.put("/api/settings", data),
+};
+
+export const permissionsApi = {
+  getAll: () => api.get("/api/permissions"),
+  getById: (id: number) => api.get(`/api/permissions/${id}`),
+  create: (data: any) => api.post("/api/permissions", data),
+  update: (id: number, data: any) => api.put(`/api/permissions/${id}`, data),
+  delete: (id: number) => api.delete(`/api/permissions/${id}`),
+};
+
+export const pagesApi = {
+  getAll: (params?: any) => api.get("/api/pages", params),
+  getById: (id: number) => api.get(`/api/pages/${id}`),
+  create: (data: any) => api.post("/api/pages", data),
+  update: (id: number, data: any) => api.put(`/api/pages/${id}`, data),
+  delete: (id: number) => api.delete(`/api/pages/${id}`),
+};
+
+export const rolesApi = {
+  getAll: (params?: any) => api.get("/api/roles", params),
+  getById: (id: number) => api.get(`/api/roles/${id}`),
+  create: (data: any) => api.post("/api/roles", data),
+  update: (id: number, data: any) => api.put(`/api/roles/${id}`, data),
+  delete: (id: number) => api.delete(`/api/roles/${id}`),
+  assignPermissions: (roleId: number, permissions: any[]) =>
+    api.post(`/api/roles/${roleId}/permissions`, { permissions }),
 };

@@ -23,8 +23,15 @@ import {
   ArrowDownTrayIcon,
   EyeIcon,
   EyeSlashIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { User } from "@/types";
+
+interface Role {
+  id: number;
+  name: string;
+  description: string;
+}
 
 const ROLE_VARIANTS: Record<string, "default" | "info" | "success" | "danger"> =
   {
@@ -35,6 +42,7 @@ const ROLE_VARIANTS: Record<string, "default" | "info" | "success" | "danger"> =
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,10 +52,11 @@ export default function UsersPage() {
     name: "",
     email: "",
     password: "",
-    role: "Viewer",
+    role_id: undefined as number | undefined,
   });
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [advancedFilters, setAdvancedFilters] = useState({
@@ -62,7 +71,8 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+    fetchRoles();
+  }, [showDeleted]);
 
   useEffect(() => {
     filterUsers();
@@ -71,12 +81,22 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const data: any = await usersApi.getAll();
+      const data: any = await usersApi.getAll(showDeleted);
       setUsers(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast.error(error.message || "Failed to load users");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const data: any = await usersApi.getRoles();
+      setRoles(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      console.error("Failed to load roles:", error);
+      // Don't show error toast as this is not critical for page load
     }
   };
 
@@ -88,7 +108,7 @@ export default function UsersPage() {
         (user) =>
           user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.role.toLowerCase().includes(searchQuery.toLowerCase()),
+          user.role_name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
@@ -103,7 +123,9 @@ export default function UsersPage() {
       );
     }
     if (advancedFilters.role) {
-      filtered = filtered.filter((user) => user.role === advancedFilters.role);
+      filtered = filtered.filter(
+        (user) => user.role_name === advancedFilters.role,
+      );
     }
     if (advancedFilters.is_active) {
       filtered = filtered.filter(
@@ -124,7 +146,7 @@ export default function UsersPage() {
             user.id,
             `"${user.name}"`,
             `"${user.email}"`,
-            user.role,
+            user.role_name,
             user.is_active ? "Yes" : "No",
           ].join(","),
         ),
@@ -171,15 +193,17 @@ export default function UsersPage() {
         name: user.name,
         email: user.email,
         password: "",
-        role: user.role,
+        role_id: user.role_id,
       });
     } else {
       setEditingUser(null);
+      // Default to Viewer role if available
+      const viewerRole = roles.find((r) => r.name === "Viewer");
       setFormData({
         name: "",
         email: "",
         password: "",
-        role: "Viewer",
+        role_id: viewerRole?.id,
       });
     }
     setShowPassword(false);
@@ -189,11 +213,12 @@ export default function UsersPage() {
   const handleCloseModal = () => {
     setModalOpen(false);
     setEditingUser(null);
+    const viewerRole = roles.find((r) => r.name === "Viewer");
     setFormData({
       name: "",
       email: "",
       password: "",
-      role: "Viewer",
+      role_id: viewerRole?.id,
     });
     setShowPassword(false);
   };
@@ -205,7 +230,7 @@ export default function UsersPage() {
       const payload: any = {
         name: formData.name,
         email: formData.email,
-        role: formData.role,
+        role_id: formData.role_id,
       };
 
       // Only include password if it's provided
@@ -245,6 +270,18 @@ export default function UsersPage() {
     }
   };
 
+  const handleRestore = async (user: User) => {
+    if (!confirm(`Are you sure you want to restore ${user.name}?`)) return;
+
+    try {
+      await usersApi.restore(user.id);
+      toast.success("User restored successfully");
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore user");
+    }
+  };
+
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -259,6 +296,14 @@ export default function UsersPage() {
     {
       key: "name",
       title: "Name",
+      render: (_: any, user: User) => (
+        <div className="flex items-center gap-2">
+          <span className={user.deleted_at ? "text-gray-400 line-through" : ""}>
+            {user.name}
+          </span>
+          {user.deleted_at && <Badge variant="danger">Deleted</Badge>}
+        </div>
+      ),
     },
     {
       key: "email",
@@ -277,18 +322,32 @@ export default function UsersPage() {
       className: "w-32",
       render: (_: any, user: User) => (
         <div className="flex gap-2">
-          <button
-            onClick={() => handleOpenModal(user)}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            <PencilIcon className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => handleDelete(user)}
-            className="text-red-600 hover:text-red-800"
-          >
-            <TrashIcon className="h-5 w-5" />
-          </button>
+          {user.deleted_at ? (
+            <button
+              onClick={() => handleRestore(user)}
+              className="text-green-600 hover:text-green-800"
+              title="Restore user"
+            >
+              <ArrowPathIcon className="h-5 w-5" />
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => handleOpenModal(user)}
+                className="text-blue-600 hover:text-blue-800"
+                title="Edit user"
+              >
+                <PencilIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => handleDelete(user)}
+                className="text-red-600 hover:text-red-800"
+                title="Delete user"
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
+            </>
+          )}
         </div>
       ),
     },
@@ -333,6 +392,19 @@ export default function UsersPage() {
                 />
               </div>
               <div className="flex gap-2">
+                <Button
+                  variant={showDeleted ? "primary" : "secondary"}
+                  onClick={() => setShowDeleted(!showDeleted)}
+                  className="whitespace-nowrap"
+                  title={
+                    showDeleted ? "Hide deleted users" : "Show deleted users"
+                  }
+                >
+                  <TrashIcon className="h-5 w-5" />
+                  <span className="hidden sm:inline">
+                    {showDeleted ? "Hide Deleted" : "Show Deleted"}
+                  </span>
+                </Button>
                 <Button
                   variant="secondary"
                   onClick={() => setAdvancedSearchOpen(true)}
@@ -479,15 +551,19 @@ export default function UsersPage() {
 
             <Select
               label="Role"
-              value={formData.role}
+              value={formData.role_id?.toString() || ""}
               onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
+                setFormData({
+                  ...formData,
+                  role_id: e.target.value
+                    ? parseInt(e.target.value)
+                    : undefined,
+                })
               }
-              options={[
-                { value: "Admin", label: "Admin - Full access" },
-                { value: "Encoder", label: "Encoder - Create/edit content" },
-                { value: "Viewer", label: "Viewer - Read-only access" },
-              ]}
+              options={roles.map((role) => ({
+                value: role.id.toString(),
+                label: `${role.name}${role.description ? ` - ${role.description}` : ""}`,
+              }))}
               required
             />
 
@@ -549,9 +625,10 @@ export default function UsersPage() {
               }
               options={[
                 { value: "", label: "All Roles" },
-                { value: "Admin", label: "Admin" },
-                { value: "Encoder", label: "Encoder" },
-                { value: "Viewer", label: "Viewer" },
+                ...roles.map((role) => ({
+                  value: role.name,
+                  label: role.name,
+                })),
               ]}
             />
 

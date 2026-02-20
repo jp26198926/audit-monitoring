@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const result = await AuditPartyController.getAllAuditParties();
+    const { searchParams } = new URL(request.url);
+    const includeDeleted = searchParams.get("includeDeleted") === "true";
+
+    const result =
+      await AuditPartyController.getAllAuditParties(includeDeleted);
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
@@ -32,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
 
-    if (!user || (user.role !== "Admin" && user.role !== "Encoder")) {
+    if (!user || (user.role_name !== "Admin" && user.role_name !== "Encoder")) {
       return NextResponse.json(
         { success: false, error: "Admin or Encoder access required" },
         { status: 403 },

@@ -19,6 +19,9 @@ import {
   TrashIcon,
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
+  ArrowPathIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 import { AuditCompany } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,10 +52,11 @@ export default function AuditCompaniesPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   useEffect(() => {
     fetchAuditCompanies();
-  }, []);
+  }, [showDeleted]);
 
   useEffect(() => {
     filterCompanies();
@@ -61,7 +65,9 @@ export default function AuditCompaniesPage() {
   const fetchAuditCompanies = async () => {
     try {
       setLoading(true);
-      const data: any = await auditCompaniesApi.getAll();
+      const data: any = await auditCompaniesApi.getAll({
+        includeDeleted: showDeleted,
+      });
       setAuditCompanies(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast.error(error.message || "Failed to load audit companies");
@@ -95,7 +101,7 @@ export default function AuditCompaniesPage() {
         email: company.email || "",
         phone: company.phone || "",
         address: company.address || "",
-        is_active: company.is_active,
+        is_active: Boolean(company.is_active),
       });
     } else {
       setEditingCompany(null);
@@ -157,6 +163,19 @@ export default function AuditCompaniesPage() {
     }
   };
 
+  const handleRestore = async (company: AuditCompany) => {
+    if (!confirm(`Are you sure you want to restore "${company.company_name}"?`))
+      return;
+
+    try {
+      await auditCompaniesApi.restore(company.id);
+      toast.success("Audit company restored successfully");
+      fetchAuditCompanies();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore audit company");
+    }
+  };
+
   const handleExport = () => {
     try {
       const headers = [
@@ -212,6 +231,12 @@ export default function AuditCompaniesPage() {
       key: "company_name",
       title: "Company Name",
       className: "font-medium text-blue-600",
+      render: (value: string, company: AuditCompany) => (
+        <div className="flex items-center gap-2">
+          <span>{value}</span>
+          {company.deleted_at && <Badge variant="default">Deleted</Badge>}
+        </div>
+      ),
     },
     {
       key: "contact_person",
@@ -243,21 +268,35 @@ export default function AuditCompaniesPage() {
       className: "w-32",
       render: (_: any, company: AuditCompany) => (
         <div className="flex gap-2">
-          {canEdit && (
-            <button
-              onClick={() => handleOpenModal(company)}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </button>
-          )}
-          {canDelete && (
-            <button
-              onClick={() => handleDelete(company)}
-              className="text-red-600 hover:text-red-800"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
+          {company.deleted_at ? (
+            canDelete && (
+              <button
+                onClick={() => handleRestore(company)}
+                className="text-green-600 hover:text-green-800"
+                title="Restore"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+              </button>
+            )
+          ) : (
+            <>
+              {canEdit && (
+                <button
+                  onClick={() => handleOpenModal(company)}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => handleDelete(company)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              )}
+            </>
           )}
           {!canEdit && !canDelete && <span className="text-gray-400">-</span>}
         </div>
@@ -299,18 +338,38 @@ export default function AuditCompaniesPage() {
             </div>
           </div>
 
-          {/* Search */}
+          {/* Search and Filters */}
           <Card>
             <div className="p-4">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search companies..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search companies..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                {canDelete && (
+                  <Button
+                    variant={showDeleted ? "primary" : "secondary"}
+                    onClick={() => setShowDeleted(!showDeleted)}
+                  >
+                    {showDeleted ? (
+                      <>
+                        <EyeSlashIcon className="h-5 w-5" />
+                        Hide Deleted
+                      </>
+                    ) : (
+                      <>
+                        <EyeIcon className="h-5 w-5" />
+                        Show Deleted
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
@@ -333,7 +392,15 @@ export default function AuditCompaniesPage() {
               </div>
             ) : (
               <>
-                <Table columns={columns} data={paginatedCompanies} />
+                <Table
+                  columns={columns}
+                  data={paginatedCompanies}
+                  getRowClassName={(company) =>
+                    company.deleted_at
+                      ? "bg-gray-100 opacity-60 hover:bg-gray-200"
+                      : "hover:bg-gray-50"
+                  }
+                />
                 {totalPages > 1 && (
                   <div className="p-4 border-t">
                     <Pagination

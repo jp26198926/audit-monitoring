@@ -22,6 +22,7 @@ import {
   ArrowPathIcon,
   FunnelIcon,
   EyeIcon,
+  ArrowUturnLeftIcon,
 } from "@heroicons/react/24/outline";
 import { Finding, Audit } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,7 +35,6 @@ interface FindingWithDetails extends Finding {
 }
 
 interface AuditWithDetails extends Audit {
-  audit_reference?: string;
   vessel_name?: string;
 }
 
@@ -70,6 +70,7 @@ export default function FindingsPage() {
   const [viewingFinding, setViewingFinding] =
     useState<FindingWithDetails | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const { hasRole } = useAuth();
 
   // Pagination and filters
@@ -106,7 +107,7 @@ export default function FindingsPage() {
 
   useEffect(() => {
     fetchFindings();
-  }, [page, filters]);
+  }, [page, filters, showDeleted]);
 
   const fetchAudits = async () => {
     try {
@@ -126,6 +127,7 @@ export default function FindingsPage() {
         ...(filters.audit_id && { audit_id: filters.audit_id }),
         ...(filters.category && { category: filters.category }),
         ...(filters.status && { status: filters.status }),
+        ...(showDeleted && { includeDeleted: "true" }),
       };
       const data: any = await findingsApi.getAll(params);
       setFindings(Array.isArray(data.data) ? data.data : []);
@@ -259,6 +261,18 @@ export default function FindingsPage() {
     }
   };
 
+  const handleRestore = async (finding: Finding) => {
+    if (!confirm("Are you sure you want to restore this finding?")) return;
+
+    try {
+      await findingsApi.restore(finding.id);
+      toast.success("Finding restored successfully");
+      fetchFindings();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore finding");
+    }
+  };
+
   const handleFilterChange = (key: string, value: string) => {
     setFilters({ ...filters, [key]: value });
     setPage(1);
@@ -318,8 +332,11 @@ export default function FindingsPage() {
       key: "status",
       title: "Status",
       className: "w-28",
-      render: (value: string) => (
-        <Badge variant={STATUS_VARIANTS[value] || "default"}>{value}</Badge>
+      render: (value: string, finding: FindingWithDetails) => (
+        <div className="flex gap-2">
+          <Badge variant={STATUS_VARIANTS[value] || "default"}>{value}</Badge>
+          {finding.deleted_at && <Badge variant="default">Deleted</Badge>}
+        </div>
       ),
     },
     {
@@ -335,42 +352,58 @@ export default function FindingsPage() {
       className: "w-44",
       render: (_: any, finding: FindingWithDetails) => (
         <div className="flex gap-2">
-          <button
-            onClick={() => handleOpenDetailModal(finding)}
-            className="text-purple-600 hover:text-purple-800"
-            title="View Details"
-          >
-            <EyeIcon className="h-5 w-5" />
-          </button>
-          {canEdit && (
+          {finding.deleted_at ? (
+            // Restore button for deleted findings
+            canDelete && (
+              <button
+                onClick={() => handleRestore(finding)}
+                className="text-green-600 hover:text-green-800"
+                title="Restore"
+              >
+                <ArrowUturnLeftIcon className="h-5 w-5" />
+              </button>
+            )
+          ) : (
+            // Regular actions for non-deleted findings
             <>
-              {finding.status === "Open" || finding.status === "Overdue" ? (
+              <button
+                onClick={() => handleOpenDetailModal(finding)}
+                className="text-purple-600 hover:text-purple-800"
+                title="View Details"
+              >
+                <EyeIcon className="h-5 w-5" />
+              </button>
+              {canEdit && (
+                <>
+                  {finding.status === "Open" || finding.status === "Overdue" ? (
+                    <button
+                      onClick={() => handleOpenCloseModal(finding)}
+                      className="text-green-600 hover:text-green-800"
+                      title="Close"
+                    >
+                      <CheckCircleIcon className="h-5 w-5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleOpenReopenModal(finding)}
+                      className="text-orange-600 hover:text-orange-800"
+                      title="Reopen"
+                    >
+                      <ArrowPathIcon className="h-5 w-5" />
+                    </button>
+                  )}
+                </>
+              )}
+              {canDelete && (
                 <button
-                  onClick={() => handleOpenCloseModal(finding)}
-                  className="text-green-600 hover:text-green-800"
-                  title="Close"
+                  onClick={() => handleDelete(finding)}
+                  className="text-red-600 hover:text-red-800"
+                  title="Delete"
                 >
-                  <CheckCircleIcon className="h-5 w-5" />
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleOpenReopenModal(finding)}
-                  className="text-orange-600 hover:text-orange-800"
-                  title="Reopen"
-                >
-                  <ArrowPathIcon className="h-5 w-5" />
+                  <TrashIcon className="h-5 w-5" />
                 </button>
               )}
             </>
-          )}
-          {canDelete && (
-            <button
-              onClick={() => handleDelete(finding)}
-              className="text-red-600 hover:text-red-800"
-              title="Delete"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
           )}
         </div>
       ),
@@ -393,6 +426,14 @@ export default function FindingsPage() {
               </p>
             </div>
             <div className="flex gap-2">
+              {canDelete && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowDeleted(!showDeleted)}
+                >
+                  {showDeleted ? "Hide Deleted" : "Show Deleted"}
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 onClick={() => setFilterOpen(!filterOpen)}
@@ -467,6 +508,9 @@ export default function FindingsPage() {
                   columns={columns}
                   data={findings}
                   emptyMessage="No findings found. Click 'Add Finding' to create one."
+                  getRowClassName={(finding: FindingWithDetails) =>
+                    finding.deleted_at ? "bg-gray-100" : ""
+                  }
                 />
                 {totalPages > 1 && (
                   <Pagination

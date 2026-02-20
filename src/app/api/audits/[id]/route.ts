@@ -45,7 +45,7 @@ export async function PUT(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || !["Admin", "Encoder", "Auditor"].includes(user.role)) {
+    if (!user || !["Admin", "Encoder", "Auditor"].includes(user.role_name)) {
       return NextResponse.json(
         { success: false, error: "Insufficient permissions" },
         { status: 403 },
@@ -153,7 +153,7 @@ export async function DELETE(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Admin access required" },
         { status: 403 },

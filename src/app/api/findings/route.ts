@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
         : undefined,
       category: searchParams.get("category") as any,
       status: searchParams.get("status") as any,
+      includeDeleted: searchParams.get("includeDeleted") === "true",
       page: searchParams.get("page") ? parseInt(searchParams.get("page")!) : 1,
       limit: searchParams.get("limit")
         ? parseInt(searchParams.get("limit")!)
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
 
-    if (!user || !["Admin", "Encoder"].includes(user.role)) {
+    if (!user || !["Admin", "Encoder"].includes(user.role_name)) {
       return NextResponse.json(
         { success: false, error: "Insufficient permissions" },
         { status: 403 },

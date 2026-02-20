@@ -61,7 +61,7 @@ export async function PUT(
     }
 
     // Check if user has Admin or Encoder role
-    if (!["Admin", "Encoder"].includes(user.role)) {
+    if (!["Admin", "Encoder"].includes(user.role_name)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -121,7 +121,7 @@ export async function DELETE(
     }
 
     // Check if user has Admin or Encoder role
-    if (!["Admin", "Encoder"].includes(user.role)) {
+    if (!["Admin", "Encoder"].includes(user.role_name)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -135,7 +135,10 @@ export async function DELETE(
       );
     }
 
-    const result = await AuditorController.deleteAuditor(auditorId);
+    const result = await AuditorController.deleteAuditor(
+      auditorId,
+      user.userId,
+    );
 
     if (!result.success) {
       return NextResponse.json(

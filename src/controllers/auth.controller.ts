@@ -9,9 +9,12 @@ export class AuthController {
    */
   static async login(email: string, password: string) {
     try {
-      // Find user by email
+      // Find user by email with role information
       const users = await query<(User & RowDataPacket)[]>(
-        "SELECT * FROM users WHERE email = ? AND is_active = TRUE",
+        `SELECT u.*, r.name as role_name 
+         FROM users u
+         INNER JOIN roles r ON u.role_id = r.id
+         WHERE u.email = ? AND u.is_active = TRUE`,
         [email],
       );
 
@@ -41,7 +44,8 @@ export class AuthController {
       const token = generateToken({
         userId: user.id,
         email: user.email,
-        role: user.role,
+        role_id: user.role_id,
+        role_name: user.role_name!,
         name: user.name,
       });
 
@@ -53,7 +57,8 @@ export class AuthController {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role,
+            role_id: user.role_id,
+            role_name: user.role_name,
           },
         },
       };
@@ -72,7 +77,10 @@ export class AuthController {
   static async getCurrentUser(userId: number) {
     try {
       const users = await query<(User & RowDataPacket)[]>(
-        "SELECT id, name, email, role, is_active, created_at FROM users WHERE id = ?",
+        `SELECT u.id, u.name, u.email, u.role_id, r.name as role_name, u.is_active, u.created_at 
+         FROM users u
+         INNER JOIN roles r ON u.role_id = r.id
+         WHERE u.id = ?`,
         [userId],
       );
 

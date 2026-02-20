@@ -68,7 +68,7 @@ export async function POST(
     }
 
     // Check if user has permission to upload
-    if (!["Admin", "Encoder", "Auditor"].includes(user.role)) {
+    if (!["Admin", "Encoder", "Auditor"].includes(user.role_name)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

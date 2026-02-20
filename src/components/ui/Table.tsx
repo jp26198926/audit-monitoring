@@ -12,6 +12,7 @@ interface TableProps {
   data: any[];
   loading?: boolean;
   emptyMessage?: string;
+  getRowClassName?: (row: any) => string;
 }
 
 export default function Table({
@@ -19,6 +20,7 @@ export default function Table({
   data,
   loading,
   emptyMessage = "No data available",
+  getRowClassName,
 }: TableProps) {
   if (loading) {
     return (
@@ -53,7 +55,12 @@ export default function Table({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {data.map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-50">
+              <tr
+                key={rowIndex}
+                className={
+                  getRowClassName ? getRowClassName(row) : "hover:bg-gray-50"
+                }
+              >
                 {columns.map((column) => (
                   <td
                     key={column.key}

@@ -17,9 +17,13 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const active = searchParams.get("active");
+    const includeDeleted = searchParams.get("includeDeleted");
 
     const filters = {
       ...(active !== null && { active: active === "true" }),
+      ...(includeDeleted !== null && {
+        includeDeleted: includeDeleted === "true",
+      }),
     };
 
     const result = await AuditCompanyController.getAllAuditCompanies(filters);
@@ -41,7 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
 
-    if (!user || !["Admin", "Encoder"].includes(user.role)) {
+    if (!user || !["Admin", "Encoder"].includes(user.role_name)) {
       return NextResponse.json(
         { success: false, error: "Insufficient permissions" },
         { status: 403 },

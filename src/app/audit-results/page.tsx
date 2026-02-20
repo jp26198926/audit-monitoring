@@ -20,6 +20,9 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ArrowDownTrayIcon,
+  ArrowPathIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 import { AuditResultType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,10 +55,11 @@ export default function AuditResultsPage() {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   useEffect(() => {
     fetchAuditResults();
-  }, []);
+  }, [showDeleted]);
 
   useEffect(() => {
     filterResults();
@@ -64,7 +68,9 @@ export default function AuditResultsPage() {
   const fetchAuditResults = async () => {
     try {
       setLoading(true);
-      const data: any = await auditResultsApi.getAll();
+      const data: any = await auditResultsApi.getAll({
+        includeDeleted: showDeleted,
+      });
       setAuditResults(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast.error(error.message || "Failed to load audit results");
@@ -168,7 +174,7 @@ export default function AuditResultsPage() {
       setFormData({
         result_name: result.result_name,
         description: result.description || "",
-        is_active: result.is_active,
+        is_active: Boolean(result.is_active),
       });
     } else {
       setEditingResult(null);
@@ -217,6 +223,20 @@ export default function AuditResultsPage() {
     }
   };
 
+  const handleRestore = async (result: AuditResultType) => {
+    if (!confirm(`Are you sure you want to restore "${result.result_name}"?`)) {
+      return;
+    }
+
+    try {
+      await auditResultsApi.restore(result.id);
+      toast.success("Audit result restored successfully");
+      fetchAuditResults();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore audit result");
+    }
+  };
+
   const canEdit = hasRole(["Admin", "Encoder"]);
   const canDelete = hasRole(["Admin"]);
 
@@ -230,6 +250,16 @@ export default function AuditResultsPage() {
       key: "result_name",
       title: "Result Name",
       className: "font-medium",
+      render: (value: string, result: AuditResultType) => (
+        <div className="flex items-center gap-2">
+          <span>{value}</span>
+          {result.deleted_at && (
+            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+              Deleted
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "description",
@@ -256,21 +286,35 @@ export default function AuditResultsPage() {
       className: "w-32",
       render: (_: any, result: AuditResultType) => (
         <div className="flex gap-2">
-          {canEdit && (
-            <button
-              onClick={() => handleOpenModal(result)}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </button>
-          )}
-          {canDelete && (
-            <button
-              onClick={() => handleDelete(result)}
-              className="text-red-600 hover:text-red-800"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
+          {result.deleted_at ? (
+            canDelete && (
+              <button
+                onClick={() => handleRestore(result)}
+                className="text-green-600 hover:text-green-800"
+                title="Restore"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+              </button>
+            )
+          ) : (
+            <>
+              {canEdit && (
+                <button
+                  onClick={() => handleOpenModal(result)}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => handleDelete(result)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              )}
+            </>
           )}
           {!canEdit && !canDelete && <span className="text-gray-400">-</span>}
         </div>
@@ -322,6 +366,25 @@ export default function AuditResultsPage() {
                 />
               </div>
               <div className="flex gap-2">
+                {canDelete && (
+                  <Button
+                    variant={showDeleted ? "primary" : "secondary"}
+                    onClick={() => setShowDeleted(!showDeleted)}
+                    className="whitespace-nowrap"
+                  >
+                    {showDeleted ? (
+                      <>
+                        <EyeSlashIcon className="h-5 w-5 sm:mr-2" />
+                        <span className="hidden sm:inline">Hide Deleted</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeIcon className="h-5 w-5 sm:mr-2" />
+                        <span className="hidden sm:inline">Show Deleted</span>
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button
                   variant="secondary"
                   onClick={() => setAdvancedSearchOpen(true)}
@@ -357,6 +420,11 @@ export default function AuditResultsPage() {
                     columns={columns}
                     data={paginatedResults}
                     emptyMessage="No audit results found."
+                    getRowClassName={(result) =>
+                      result.deleted_at
+                        ? "bg-gray-100 opacity-60 hover:bg-gray-200"
+                        : "hover:bg-gray-50"
+                    }
                   />
                 </div>
 

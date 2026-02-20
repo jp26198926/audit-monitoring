@@ -17,10 +17,16 @@ export class FindingController {
     status?: FindingStatus;
     page?: number;
     limit?: number;
+    includeDeleted?: boolean;
   }) {
     try {
       const conditions: string[] = [];
       const values: any[] = [];
+
+      // Default: only show non-deleted findings
+      if (!filters?.includeDeleted) {
+        conditions.push("f.deleted_at IS NULL");
+      }
 
       if (filters?.audit_id) {
         conditions.push("f.audit_id = ?");
@@ -97,7 +103,7 @@ export class FindingController {
         LEFT JOIN audits a ON f.audit_id = a.id
         LEFT JOIN vessels v ON a.vessel_id = v.id
         LEFT JOIN audit_types at ON a.audit_type_id = at.id
-        WHERE f.id = ?`,
+        WHERE f.id = ? AND f.deleted_at IS NULL`,
         [id],
       );
 
@@ -326,12 +332,28 @@ export class FindingController {
   }
 
   /**
-   * Delete finding (Admin only)
+   * Delete finding (soft delete)
    */
-  static async deleteFinding(id: number) {
+  static async deleteFinding(id: number, deletedBy: number) {
     try {
-      // Attachments will be cascade deleted due to foreign key constraint
-      await query("DELETE FROM findings WHERE id = ?", [id]);
+      // Check if finding exists and is not already deleted
+      const [finding] = await query<RowDataPacket[]>(
+        "SELECT id FROM findings WHERE id = ? AND deleted_at IS NULL",
+        [id],
+      );
+
+      if (!finding) {
+        return {
+          success: false,
+          error: "Finding not found or already deleted",
+        };
+      }
+
+      // Soft delete the finding
+      await query(
+        "UPDATE findings SET deleted_at = NOW(), deleted_by = ? WHERE id = ?",
+        [deletedBy, id],
+      );
 
       return {
         success: true,
@@ -342,6 +364,43 @@ export class FindingController {
       return {
         success: false,
         error: "Failed to delete finding",
+      };
+    }
+  }
+
+  /**
+   * Restore deleted finding
+   */
+  static async restoreFinding(id: number) {
+    try {
+      // Check if finding exists and is deleted
+      const [finding] = await query<RowDataPacket[]>(
+        "SELECT id FROM findings WHERE id = ? AND deleted_at IS NOT NULL",
+        [id],
+      );
+
+      if (!finding) {
+        return {
+          success: false,
+          error: "Finding not found or not deleted",
+        };
+      }
+
+      // Restore the finding
+      await query(
+        "UPDATE findings SET deleted_at = NULL, deleted_by = NULL WHERE id = ?",
+        [id],
+      );
+
+      return {
+        success: true,
+        message: "Finding restored successfully",
+      };
+    } catch (error) {
+      console.error("Restore finding error:", error);
+      return {
+        success: false,
+        error: "Failed to restore finding",
       };
     }
   }

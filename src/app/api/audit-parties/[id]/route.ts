@@ -42,7 +42,7 @@ export async function PUT(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || (user.role !== "Admin" && user.role !== "Encoder")) {
+    if (!user || (user.role_name !== "Admin" && user.role_name !== "Encoder")) {
       return NextResponse.json(
         { success: false, error: "Admin or Encoder access required" },
         { status: 403 },
@@ -91,7 +91,7 @@ export async function DELETE(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || user.role !== "Admin") {
+    if (!user || user.role_name !== "Admin") {
       return NextResponse.json(
         { success: false, error: "Admin access required" },
         { status: 403 },
@@ -100,7 +100,7 @@ export async function DELETE(
 
     const { id: paramId } = await params;
     const id = parseInt(paramId);
-    const result = await AuditPartyController.deleteAuditParty(id);
+    const result = await AuditPartyController.deleteAuditParty(id, user.userId);
 
     return NextResponse.json(result, {
       status: result.success ? 200 : 400,
