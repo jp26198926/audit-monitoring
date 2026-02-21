@@ -48,9 +48,13 @@ export class FindingController {
       console.log("FindingController - SQL values:", values);
 
       // Ensure all numeric values in conditions are proper integers
-      const sanitizedValues = values.map((v) =>
-        typeof v === "number" ? Math.floor(v) : v,
-      );
+      const sanitizedValues = values.map((v) => {
+        if (typeof v === "string") {
+          const parsed = parseInt(v, 10);
+          return isNaN(parsed) ? v : parsed;
+        }
+        return typeof v === "number" ? Math.floor(v) : v;
+      });
 
       // Get total count
       const countResult = await query<RowDataPacket[]>(
@@ -64,12 +68,18 @@ export class FindingController {
       // Get paginated results
       const pagination = getPaginationParams(filters?.page, filters?.limit);
 
+      // Ensure limit and offset are integers (not NaN or undefined)
+      const limit = Math.floor(pagination.limit) || 10;
+      const offset = Math.floor(pagination.offset) || 0;
+
       // Ensure all numeric values are proper integers for MySQL
-      const queryParams = [
-        ...sanitizedValues,
-        Math.floor(pagination.limit),
-        Math.floor(pagination.offset),
-      ];
+      const queryParams = [...sanitizedValues, limit, offset];
+
+      console.log("FindingController - Query params:", queryParams);
+      console.log(
+        "FindingController - Param types:",
+        queryParams.map((p) => typeof p),
+      );
 
       const findings = await query<RowDataPacket[]>(
         `SELECT 
