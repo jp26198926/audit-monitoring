@@ -172,9 +172,25 @@ export default function AuditDetailPage() {
 
   const fetchFindings = async () => {
     try {
+      console.log("Fetching findings for audit ID:", auditId);
       const data: any = await findingsApi.getAll({ audit_id: auditId });
-      setFindings(Array.isArray(data) ? data : data.data || []);
+      console.log("Findings API response:", data);
+      console.log("Response type:", typeof data);
+      console.log("Is array?", Array.isArray(data));
+      console.log("Has data property?", data && "data" in data);
+
+      const findingsArray = Array.isArray(data) ? data : data?.data || [];
+      console.log("Extracted findings array:", findingsArray);
+      console.log("Findings count:", findingsArray.length);
+
+      setFindings(findingsArray);
     } catch (error: any) {
+      console.error("Failed to fetch findings:", error);
+      console.error("Error details:", {
+        message: error.message,
+        status: error.status,
+        auditId,
+      });
       toast.error(error.message || "Failed to load findings");
     }
   };

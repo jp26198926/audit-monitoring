@@ -30,7 +30,17 @@ export async function GET(request: NextRequest) {
         : 10,
     };
 
+    console.log("Findings API - Filters:", filters);
+    console.log("Findings API - User:", user.userId, user.role_name);
+    console.log("Findings API - Request URL:", request.url);
+
     const result = await FindingController.getAllFindings(filters);
+
+    console.log("Findings API - Controller result:", {
+      success: result.success,
+      dataLength: result.success && result.data ? result.data.length : 0,
+      hasError: !!result.error,
+    });
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

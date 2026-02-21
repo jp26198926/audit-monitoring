@@ -44,12 +44,17 @@ export class FindingController {
       const whereClause =
         conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
+      console.log("FindingController - SQL WHERE clause:", whereClause);
+      console.log("FindingController - SQL values:", values);
+
       // Get total count
       const countResult = await query<RowDataPacket[]>(
         `SELECT COUNT(*) as total FROM findings f ${whereClause}`,
         values,
       );
       const total = countResult[0].total;
+
+      console.log("FindingController - Total count:", total);
 
       // Get paginated results
       const pagination = getPaginationParams(filters?.page, filters?.limit);
@@ -69,6 +74,8 @@ export class FindingController {
         [...values, pagination.limit, pagination.offset],
       );
 
+      console.log("FindingController - Findings retrieved:", findings.length);
+
       return {
         success: true,
         data: findings,
@@ -81,6 +88,10 @@ export class FindingController {
       };
     } catch (error) {
       console.error("Get findings error:", error);
+      console.error("Get findings error details:", {
+        message: error instanceof Error ? error.message : "Unknown error",
+        filters,
+      });
       return {
         success: false,
         error: "Failed to fetch findings",
