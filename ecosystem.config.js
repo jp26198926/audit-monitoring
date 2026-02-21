@@ -11,6 +11,7 @@ module.exports = {
       max_memory_restart: "1G",
       env: {
         NODE_ENV: "production",
+        PORT: 4000,
       },
       error_file: "~/.pm2/logs/audit-monitoring-error.log",
       out_file: "~/.pm2/logs/audit-monitoring-out.log",
