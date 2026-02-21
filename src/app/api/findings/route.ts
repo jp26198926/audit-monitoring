@@ -3,6 +3,13 @@ import { getAuthUser } from "@/middleware/auth.middleware";
 import { FindingController } from "@/controllers/finding.controller";
 import { createFindingSchema } from "@/validators/schemas";
 
+// Helper to safely parse integers
+const safeParseInt = (value: string | null, defaultValue: number): number => {
+  if (!value) return defaultValue;
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? defaultValue : parsed;
+};
+
 // GET /api/findings - List findings with filters
 export async function GET(request: NextRequest) {
   try {
@@ -17,17 +24,17 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
 
+    const auditIdParam = searchParams.get("audit_id");
+    const parsedAuditId = auditIdParam ? parseInt(auditIdParam, 10) : undefined;
+
     const filters = {
-      audit_id: searchParams.get("audit_id")
-        ? parseInt(searchParams.get("audit_id")!)
-        : undefined,
+      audit_id:
+        parsedAuditId && !isNaN(parsedAuditId) ? parsedAuditId : undefined,
       category: searchParams.get("category") as any,
       status: searchParams.get("status") as any,
       includeDeleted: searchParams.get("includeDeleted") === "true",
-      page: searchParams.get("page") ? parseInt(searchParams.get("page")!) : 1,
-      limit: searchParams.get("limit")
-        ? parseInt(searchParams.get("limit")!)
-        : 10,
+      page: safeParseInt(searchParams.get("page"), 1),
+      limit: safeParseInt(searchParams.get("limit"), 10),
     };
 
     console.log("Findings API - Filters:", filters);
