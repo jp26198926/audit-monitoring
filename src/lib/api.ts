@@ -28,7 +28,7 @@ function getBasePath(): string {
 }
 
 // Helper function to construct full API URL with base path
-function getApiUrl(path: string): string {
+export function getApiUrl(path: string): string {
   // Ensure the path starts with /
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const basePath = getBasePath();

@@ -20,6 +20,7 @@ import {
   auditResultsApi,
   settingsApi,
   api,
+  getApiUrl,
 } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
@@ -180,11 +181,14 @@ export default function AuditDetailPage() {
 
   const fetchAttachments = async () => {
     try {
-      const response = await fetch(`/api/audits/${auditId}/attachments`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+      const response = await fetch(
+        getApiUrl(`/api/audits/${auditId}/attachments`),
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         },
-      });
+      );
       const result = await response.json();
       if (result.success) {
         setAttachments(result.data || []);
@@ -408,13 +412,16 @@ export default function AuditDetailPage() {
 
       const token =
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      const response = await fetch(`/api/audits/${auditId}/attachments`, {
-        method: "POST",
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
+      const response = await fetch(
+        getApiUrl(`/api/audits/${auditId}/attachments`),
+        {
+          method: "POST",
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+          body: formData,
         },
-        body: formData,
-      });
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -440,7 +447,7 @@ export default function AuditDetailPage() {
       const token =
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const response = await fetch(
-        `/api/audits/${auditId}/attachments/${attachmentId}`,
+        getApiUrl(`/api/audits/${auditId}/attachments/${attachmentId}`),
         {
           method: "DELETE",
           headers: {
