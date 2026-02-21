@@ -104,27 +104,6 @@ export default function LoginPage() {
               Sign In
             </Button>
           </form>
-
-          {/* Default credentials info */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-xs text-blue-800 font-semibold mb-2">
-              Default Admin Credentials:
-            </p>
-            <div className="text-xs text-blue-700 space-y-1">
-              <p>
-                Email:{" "}
-                <span className="font-mono bg-white px-1 rounded">
-                  admin@example.com
-                </span>
-              </p>
-              <p>
-                Password:{" "}
-                <span className="font-mono bg-white px-1 rounded">
-                  admin123
-                </span>
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
