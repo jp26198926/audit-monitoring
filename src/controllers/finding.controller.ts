@@ -94,7 +94,8 @@ export class FindingController {
       });
       return {
         success: false,
-        error: "Failed to fetch findings",
+        // error: "Failed to fetch findings",
+        error: error,
       };
     }
   }
