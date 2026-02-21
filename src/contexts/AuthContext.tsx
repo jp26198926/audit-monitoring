@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { authApi } from "@/lib/api";
 
 interface AuthContextType {
   user: User | null;
@@ -33,18 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const response = await fetch("/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setUser(result.data);
-      } else {
-        localStorage.removeItem("token");
-      }
+      const userData = await authApi.getCurrentUser();
+      setUser(userData as User);
     } catch (error) {
       console.error("Auth check failed:", error);
       localStorage.removeItem("token");
@@ -55,22 +46,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Login failed");
-      }
-
-      localStorage.setItem("token", result.data.token);
-      setUser(result.data.user);
+      const result: any = await authApi.login(email, password);
+      localStorage.setItem("token", result.token);
+      setUser(result.user);
       toast.success("Login successful!");
       router.push("/dashboard");
     } catch (error: any) {
