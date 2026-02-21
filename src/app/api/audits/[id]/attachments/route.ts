@@ -45,7 +45,7 @@ export async function POST(
   try {
     const user = await getAuthUser(request);
 
-    if (!user || !["Admin", "Encoder", "Auditor"].includes(user.role_name)) {
+    if (!user || !["Admin", "Encoder"].includes(user.role_name)) {
       return NextResponse.json(
         { success: false, error: "Insufficient permissions" },
         { status: 403 },
@@ -92,11 +92,28 @@ export async function POST(
     }
 
     // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    // Use absolute path or environment variable for production
+    const uploadBaseDir = process.env.UPLOAD_DIR
+      ? path.resolve(process.env.UPLOAD_DIR)
+      : path.join(process.cwd(), "public", "uploads");
+
+    // Ensure the directory exists with proper permissions
+    const uploadDir = path.join(uploadBaseDir);
+    console.log("Upload directory (resolved):", uploadDir);
+    console.log("Working directory:", process.cwd());
+
     try {
-      await mkdir(uploadDir, { recursive: true });
+      await mkdir(uploadDir, { recursive: true, mode: 0o755 });
+      console.log("Upload directory created/verified successfully");
     } catch (error) {
-      // Directory might already exist
+      console.error("Failed to create upload directory:", error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to create upload directory: ${error instanceof Error ? error.message : "Unknown error"}`,
+        },
+        { status: 500 },
+      );
     }
 
     // Upload all files and create records
@@ -107,13 +124,20 @@ export async function POST(
         const uniqueFilename = generateUniqueFilename(file.name);
         const filePath = path.join(uploadDir, uniqueFilename);
 
-        // Save file
+        // Save file with proper error handling
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
         await writeFile(filePath, buffer);
+        console.log(`File saved successfully: ${filePath}`);
 
-        // Create database record
-        const fileUrl = `/uploads/${uniqueFilename}`;
+        // Generate accessible URL path
+        // If using custom upload dir, use relative path from public
+        // Otherwise use standard /uploads/ path
+        const isPublicDir = uploadBaseDir.includes("public");
+        const fileUrl = isPublicDir
+          ? `/uploads/${uniqueFilename}`
+          : `/uploads/${uniqueFilename}`; // Apache must be configured to serve this
+
         const result = await AuditAttachmentController.createAttachment({
           audit_id: auditId,
           file_path: fileUrl,
@@ -129,21 +153,60 @@ export async function POST(
             file_name: file.name,
             file_path: fileUrl,
           });
+        } else {
+          console.error(
+            `Failed to create DB record for ${file.name}:`,
+            result.error,
+          );
         }
       } catch (error) {
+        const errorMsg =
+          error instanceof Error ? error.message : "Unknown error";
         console.error(`Failed to upload file ${file.name}:`, error);
+        console.error(`Error details:`, {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          uploadDir,
+          error: errorMsg,
+        });
+        // Continue with next file instead of failing completely
       }
+    }
+
+    // Return appropriate response
+    if (uploadedFiles.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to upload any files. Check server logs for details.",
+        },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({
       success: true,
       data: uploadedFiles,
-      message: `${uploadedFiles.length} file(s) uploaded successfully`,
+      message: `${uploadedFiles.length} of ${files.length} file(s) uploaded successfully`,
     });
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error("Upload attachments API error:", error);
+    console.error("Error context:", {
+      cwd: process.cwd(),
+      uploadDir: process.env.UPLOAD_DIR,
+      error: errorMessage,
+    });
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
+      {
+        success: false,
+        error:
+          process.env.NODE_ENV === "development"
+            ? `Upload failed: ${errorMessage}`
+            : "Internal server error",
+      },
       { status: 500 },
     );
   }
