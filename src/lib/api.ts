@@ -1,20 +1,38 @@
 // API client utilities for making authenticated requests
 
-// Get the base path - try from environment first, fallback to empty string
-// Note: For production deployments with subdirectory (e.g., /audit-monitoring),
-// set NEXT_PUBLIC_BASE_PATH environment variable before building, or set BASE_PATH in next.config
-const BASE_PATH =
-  (typeof window !== "undefined" &&
-    (window as any).__NEXT_DATA__?.props?.pageProps?.basePath) ||
-  process.env.NEXT_PUBLIC_BASE_PATH ||
-  process.env.BASE_PATH ||
-  "";
+// Get the base path dynamically
+function getBasePath(): string {
+  // In browser, check if we're running under a subdirectory
+  if (typeof window !== "undefined") {
+    const pathname = window.location.pathname;
+    // Check if pathname starts with /audit-monitoring
+    if (pathname.startsWith("/audit-monitoring")) {
+      return "/audit-monitoring";
+    }
+  }
+
+  // Try from Next.js config (available at build time)
+  if (process.env.NEXT_PUBLIC_BASE_PATH) {
+    return process.env.NEXT_PUBLIC_BASE_PATH;
+  }
+
+  // Finally, try from Next.js internals
+  if (typeof window !== "undefined" && (window as any).__NEXT_DATA__?.buildId) {
+    const basePath = (window as any).__NEXT_DATA__?.page;
+    if (basePath && basePath.startsWith("/audit-monitoring")) {
+      return "/audit-monitoring";
+    }
+  }
+
+  return "";
+}
 
 // Helper function to construct full API URL with base path
 function getApiUrl(path: string): string {
   // Ensure the path starts with /
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${BASE_PATH}${normalizedPath}`;
+  const basePath = getBasePath();
+  return `${basePath}${normalizedPath}`;
 }
 
 export class ApiError extends Error {
