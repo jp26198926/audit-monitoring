@@ -13,6 +13,7 @@ module.exports = {
         NODE_ENV: "production",
         PORT: 4000,
         BASE_PATH: "/audit-monitoring",
+        NEXT_PUBLIC_BASE_PATH: "/audit-monitoring",
       },
       error_file: "~/.pm2/logs/audit-monitoring-error.log",
       out_file: "~/.pm2/logs/audit-monitoring-out.log",
