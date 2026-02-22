@@ -81,6 +81,8 @@ export class FindingController {
         queryParams.map((p) => typeof p),
       );
 
+      throw new Error(whereClause + " - " + queryParams.join(", ")); // Debugging line to inspect the SQL query and parameters
+
       const findings = await query<RowDataPacket[]>(
         `SELECT 
           f.*,
