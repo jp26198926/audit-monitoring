@@ -23,6 +23,17 @@ export const updateUserSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(1, "New password is required"),
+    confirmPassword: z.string().min(1, "Please confirm your new password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 // Vessel schemas
 export const createVesselSchema = z.object({
   vessel_name: z.string().min(2, "Vessel name must be at least 2 characters"),

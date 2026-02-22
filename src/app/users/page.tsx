@@ -310,7 +310,7 @@ export default function UsersPage() {
       title: "Email",
     },
     {
-      key: "role",
+      key: "role_name",
       title: "Role",
       render: (value: string) => (
         <Badge variant={ROLE_VARIANTS[value] || "default"}>{value}</Badge>

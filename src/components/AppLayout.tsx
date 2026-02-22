@@ -201,13 +201,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={logout}
-                className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-              >
-                <ArrowRightOnRectangleIcon className="mr-2 h-5 w-5" />
-                Logout
-              </button>
+              <div className="space-y-2">
+                <Link
+                  href="/change-password"
+                  className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <KeyIcon className="mr-2 h-5 w-5" />
+                  Change Password
+                </Link>
+                <button
+                  onClick={logout}
+                  className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <ArrowRightOnRectangleIcon className="mr-2 h-5 w-5" />
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { query } from "@/lib/db";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, comparePassword } from "@/lib/auth";
 import { User } from "@/types";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 
@@ -315,6 +315,65 @@ export class UserController {
       return {
         success: false,
         error: "Failed to fetch roles",
+      };
+    }
+  }
+
+  /**
+   * Change user password (for logged-in user)
+   */
+  static async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    try {
+      // Get user's current password hash
+      const users = await query<RowDataPacket[]>(
+        "SELECT password_hash FROM users WHERE id = ? AND deleted_at IS NULL",
+        [userId],
+      );
+
+      if (users.length === 0) {
+        return {
+          success: false,
+          error: "User not found",
+        };
+      }
+
+      const user = users[0];
+
+      // Verify current password
+      const isValidPassword = await comparePassword(
+        currentPassword,
+        user.password_hash,
+      );
+
+      if (!isValidPassword) {
+        return {
+          success: false,
+          error: "Current password is incorrect",
+        };
+      }
+
+      // Hash new password
+      const newPasswordHash = await hashPassword(newPassword);
+
+      // Update password
+      await query(
+        "UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?",
+        [newPasswordHash, userId],
+      );
+
+      return {
+        success: true,
+        message: "Password changed successfully",
+      };
+    } catch (error) {
+      console.error("Change password error:", error);
+      return {
+        success: false,
+        error: "Failed to change password",
       };
     }
   }
