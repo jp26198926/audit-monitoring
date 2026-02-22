@@ -82,7 +82,7 @@ export class FindingController {
       );
 
       throw new Error(whereClause + " - " + queryParams.join(", ")); // Debugging line to inspect the SQL query and parameters
-
+      return;
       const findings = await query<RowDataPacket[]>(
         `SELECT 
           f.*,
