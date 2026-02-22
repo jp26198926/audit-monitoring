@@ -86,8 +86,9 @@ export class AuditController {
         LEFT JOIN users du ON a.deleted_by = du.id
         ${whereClause}
         ORDER BY a.created_at DESC
-        LIMIT ? OFFSET ?`,
-        [...values, pagination.limit, pagination.offset],
+        `,
+        values,
+        //[...values, pagination.limit, pagination.offset],
       );
 
       return {

@@ -44,9 +44,6 @@ export class FindingController {
       const whereClause =
         conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-      console.log("FindingController - SQL WHERE clause:", whereClause);
-      console.log("FindingController - SQL values:", values);
-
       // Ensure all numeric values in conditions are proper integers
       const sanitizedValues = values.map((v) => {
         if (typeof v === "string") {
@@ -63,8 +60,6 @@ export class FindingController {
       );
       const total = countResult[0].total;
 
-      console.log("FindingController - Total count:", total);
-
       // Get paginated results
       const pagination = getPaginationParams(filters?.page, filters?.limit);
 
@@ -74,12 +69,6 @@ export class FindingController {
 
       // Ensure all numeric values are proper integers for MySQL
       const queryParams = [...sanitizedValues, limit, offset];
-
-      console.log("FindingController - Query params:", queryParams);
-      console.log(
-        "FindingController - Param types:",
-        queryParams.map((p) => typeof p),
-      );
 
       const findings = await query<RowDataPacket[]>(
         `SELECT
@@ -96,8 +85,6 @@ export class FindingController {
       `,
         values,
       );
-
-      console.log("FindingController - Findings retrieved:", findings.length);
 
       return {
         success: true,
