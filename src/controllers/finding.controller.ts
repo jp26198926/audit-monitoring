@@ -81,21 +81,23 @@ export class FindingController {
         queryParams.map((p) => typeof p),
       );
 
-      const findings = await query<RowDataPacket[]>(
-        `SELECT 
-          f.*,
-          a.audit_reference,
-          v.vessel_name,
-          at.type_name as audit_type_name
-        FROM findings f
-        LEFT JOIN audits a ON f.audit_id = a.id
-        LEFT JOIN vessels v ON a.vessel_id = v.id
-        LEFT JOIN audit_types at ON a.audit_type_id = at.id
-        ${whereClause}
-        ORDER BY f.created_at DESC
-        LIMIT ? OFFSET ?`,
-        queryParams,
-      );
+      const findings = [whereClause, queryParams];
+
+      // const findings = await query<RowDataPacket[]>(
+      //   `SELECT
+      //     f.*,
+      //     a.audit_reference,
+      //     v.vessel_name,
+      //     at.type_name as audit_type_name
+      //   FROM findings f
+      //   LEFT JOIN audits a ON f.audit_id = a.id
+      //   LEFT JOIN vessels v ON a.vessel_id = v.id
+      //   LEFT JOIN audit_types at ON a.audit_type_id = at.id
+      //   ${whereClause}
+      //   ORDER BY f.created_at DESC
+      //   LIMIT ? OFFSET ?`,
+      //   queryParams,
+      // );
 
       console.log("FindingController - Findings retrieved:", findings.length);
 
