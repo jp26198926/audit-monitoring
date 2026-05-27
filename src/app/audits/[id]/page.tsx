@@ -1575,6 +1575,12 @@ export default function AuditDetailPage() {
                       Description
                     </th>
                     <th className="border border-gray-300 px-3 py-2 text-left">
+                      Root Cause
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
+                      Corrective Action
+                    </th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">
                       Status
                     </th>
                     <th className="border border-gray-300 px-3 py-2 text-left">
@@ -1590,6 +1596,12 @@ export default function AuditDetailPage() {
                       </td>
                       <td className="border border-gray-300 px-3 py-2">
                         {finding.description}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {finding.root_cause || ""}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {finding.corrective_action || ""}
                       </td>
                       <td className="border border-gray-300 px-3 py-2">
                         {finding.status}
