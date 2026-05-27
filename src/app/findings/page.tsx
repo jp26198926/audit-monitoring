@@ -12,6 +12,7 @@ import Select from "@/components/ui/Select";
 import Badge from "@/components/ui/Badge";
 import Pagination from "@/components/ui/Pagination";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import FindingDetailModal from "@/components/FindingDetailModal";
 import { findingsApi, auditsApi } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -177,6 +178,11 @@ export default function FindingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const descriptionText = formData.description.replace(/<[^>]*>/g, "").trim();
+    if (!descriptionText) {
+      toast.error("Description is required");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -314,10 +320,12 @@ export default function FindingsPage() {
     {
       key: "description",
       title: "Description",
+      className: "max-w-xs",
       render: (value: string) => (
-        <div className="max-w-xs truncate" title={value}>
-          {value}
-        </div>
+        <div
+          className="line-clamp-3 text-sm [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4"
+          dangerouslySetInnerHTML={{ __html: value || "" }}
+        />
       ),
     },
     {
@@ -552,27 +560,14 @@ export default function FindingsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Description <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-500 ml-2">
-                  (minimum 10 characters)
-                </span>
               </label>
-              <textarea
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
-                placeholder="Describe the finding in detail (at least 10 characters)"
+              <RichTextEditor
                 value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
+                onChange={(html) =>
+                  setFormData({ ...formData, description: html })
                 }
-                minLength={10}
-                required
+                placeholder="Describe the finding in detail..."
               />
-              {formData.description.length > 0 &&
-                formData.description.length < 10 && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {10 - formData.description.length} more characters required
-                  </p>
-                )}
             </div>
 
             <Select

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
 import { Finding, FindingStatus, FindingCategory } from "@/types";
@@ -14,6 +15,7 @@ import {
   ArrowDownTrayIcon,
   CheckCircleIcon,
   XCircleIcon,
+  PencilIcon,
 } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 
@@ -64,6 +66,8 @@ export default function FindingDetailModal({
     finding.corrective_action || "",
   );
   const [rootCause, setRootCause] = useState(finding.root_cause || "");
+  const [editingRootCause, setEditingRootCause] = useState(false);
+  const [editingCorrectiveAction, setEditingCorrectiveAction] = useState(false);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -81,6 +85,8 @@ export default function FindingDetailModal({
     setCorrectiveAction(finding.corrective_action || "");
     setRootCause(finding.root_cause || "");
     setStatus(finding.status);
+    setEditingRootCause(false);
+    setEditingCorrectiveAction(false);
   }, [finding]);
 
   const fetchEvidence = async () => {
@@ -142,6 +148,7 @@ export default function FindingDetailModal({
       await findingsApi.update(finding.id, {
         corrective_action: correctiveAction || null,
       });
+      setEditingCorrectiveAction(false);
       toast.success("Corrective action updated successfully");
       onUpdate();
     } catch (error: any) {
@@ -157,6 +164,7 @@ export default function FindingDetailModal({
       await findingsApi.update(finding.id, {
         root_cause: rootCause || null,
       });
+      setEditingRootCause(false);
       toast.success("Root cause updated successfully");
       onUpdate();
     } catch (error: any) {
@@ -235,63 +243,120 @@ export default function FindingDetailModal({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Description
           </label>
-          <p className="text-sm text-gray-900 bg-gray-50 rounded p-3">
-            {finding.description}
-          </p>
+          <div
+            className="text-sm text-gray-900 bg-gray-50 rounded p-3 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_li]:mb-0.5"
+            dangerouslySetInnerHTML={{ __html: finding.description }}
+          />
         </div>
 
         {/* Root Cause */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Root Cause
-          </label>
-          {canEdit && status !== "Closed" ? (
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Root Cause
+            </label>
+            {canEdit && status !== "Closed" && !editingRootCause && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setEditingRootCause(true)}
+              >
+                <PencilIcon className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            )}
+          </div>
+          {editingRootCause ? (
             <div className="space-y-2">
-              <textarea
+              <RichTextEditor
                 value={rootCause}
-                onChange={(e) => setRootCause(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={setRootCause}
                 placeholder="Enter root cause analysis..."
               />
-              <Button onClick={handleSaveRootCause} disabled={saving} size="sm">
-                <CheckCircleIcon className="h-4 w-4 mr-1" />
-                Save Root Cause
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleSaveRootCause}
+                  disabled={saving}
+                  size="sm"
+                >
+                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                  Save Root Cause
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => {
+                    setRootCause(finding.root_cause || "");
+                    setEditingRootCause(false);
+                  }}
+                >
+                  <XCircleIcon className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+              </div>
             </div>
+          ) : rootCause ? (
+            <RichTextEditor value={rootCause} editable={false} />
           ) : (
-            <p className="text-sm text-gray-900 bg-gray-50 rounded p-3">
-              {rootCause || "No root cause specified"}
+            <p className="text-sm text-gray-500 bg-gray-50 rounded p-3 italic">
+              No root cause specified
             </p>
           )}
         </div>
 
         {/* Corrective Action */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Corrective Action
-          </label>
-          {canEdit && status !== "Closed" ? (
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Corrective Action
+            </label>
+            {canEdit && status !== "Closed" && !editingCorrectiveAction && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setEditingCorrectiveAction(true)}
+              >
+                <PencilIcon className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            )}
+          </div>
+          {editingCorrectiveAction ? (
             <div className="space-y-2">
-              <textarea
+              <RichTextEditor
                 value={correctiveAction}
-                onChange={(e) => setCorrectiveAction(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={setCorrectiveAction}
                 placeholder="Enter corrective action details..."
               />
-              <Button
-                onClick={handleSaveCorrectiveAction}
-                disabled={saving}
-                size="sm"
-              >
-                <CheckCircleIcon className="h-4 w-4 mr-1" />
-                Save Corrective Action
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleSaveCorrectiveAction}
+                  disabled={saving}
+                  size="sm"
+                >
+                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                  Save Corrective Action
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => {
+                    setCorrectiveAction(finding.corrective_action || "");
+                    setEditingCorrectiveAction(false);
+                  }}
+                >
+                  <XCircleIcon className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+              </div>
             </div>
+          ) : correctiveAction ? (
+            <RichTextEditor value={correctiveAction} editable={false} />
           ) : (
-            <p className="text-sm text-gray-900 bg-gray-50 rounded p-3">
-              {correctiveAction || "No corrective action specified"}
+            <p className="text-sm text-gray-500 bg-gray-50 rounded p-3 italic">
+              No corrective action specified
             </p>
           )}
         </div>
